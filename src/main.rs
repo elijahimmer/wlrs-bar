@@ -1,9 +1,11 @@
-use std::convert::TryInto;
+pub mod color;
+pub mod draw;
+use rusttype::{point, Scale};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_layer, delegate_output, delegate_pointer,
-    delegate_registry, delegate_seat, delegate_shm,
+    delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
+    delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
@@ -13,8 +15,7 @@ use smithay_client_toolkit::{
     },
     shell::{
         wlr_layer::{
-            Anchor, Layer, LayerShell, LayerShellHandler, LayerSurface,
-            LayerSurfaceConfigure,
+            Anchor, Layer, LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure,
         },
         WaylandSurface,
     },
@@ -25,6 +26,9 @@ use wayland_client::{
     protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
+
+const HEIGHT: usize = 32;
+const WIDTH: usize = 0;
 
 fn main() {
     env_logger::init();
@@ -45,12 +49,12 @@ fn main() {
     // get every layer besides for the bottom
     const ANCHOR: Anchor = Anchor::BOTTOM.complement();
     layer.set_anchor(ANCHOR);
-    layer.set_size(0, 256);
-    layer.set_exclusive_zone(0);
+    layer.set_size(WIDTH as u32, HEIGHT as u32);
+    layer.set_exclusive_zone(HEIGHT as i32);
 
     layer.commit();
 
-    let pool = SlotPool::new(256 * 1000 * 4, &shm).expect("Failed to create pool");
+    let pool = SlotPool::new(HEIGHT * 1000 * 4, &shm).expect("Failed to create pool");
 
     let mut simple_layer = SimpleLayer {
         registry_state: RegistryState::new(&globals),
@@ -61,9 +65,8 @@ fn main() {
         exit: false,
         first_configure: true,
         pool,
-        width: 256,
-        height: 256,
-        shift: None,
+        width: WIDTH as u32,
+        height: HEIGHT as u32,
         layer,
         pointer: None,
     };
@@ -90,7 +93,6 @@ struct SimpleLayer {
     pool: SlotPool,
     width: u32,
     height: u32,
-    shift: Option<u32>,
     layer: LayerSurface,
     pointer: Option<wl_pointer::WlPointer>,
 }
@@ -171,9 +173,14 @@ impl LayerShellHandler for SimpleLayer {
         _serial: u32,
     ) {
         if configure.new_size.0 == 0 || configure.new_size.1 == 0 {
-            self.width = 256;
-            self.height = 256;
+            self.width = WIDTH as u32;
+            self.height = HEIGHT as u32;
         } else {
+            log::debug!(
+                "new size requested ({}, {})",
+                configure.new_size.0,
+                configure.new_size.1
+            );
             self.width = configure.new_size.0;
             self.height = configure.new_size.1;
         }
@@ -200,10 +207,12 @@ impl SeatHandler for SimpleLayer {
         seat: wl_seat::WlSeat,
         capability: Capability,
     ) {
-
         if capability == Capability::Pointer && self.pointer.is_none() {
-            println!("Set pointer capability");
-            let pointer = self.seat_state.get_pointer(qh, &seat).expect("Failed to create pointer");
+            log::debug!("Set pointer capability");
+            let pointer = self
+                .seat_state
+                .get_pointer(qh, &seat)
+                .expect("Failed to create pointer");
             self.pointer = Some(pointer);
         }
     }
@@ -215,16 +224,14 @@ impl SeatHandler for SimpleLayer {
         _: wl_seat::WlSeat,
         capability: Capability,
     ) {
-
         if capability == Capability::Pointer && self.pointer.is_some() {
-            println!("Unset pointer capability");
+            log::debug!("Unset pointer capability");
             self.pointer.take().unwrap().release();
         }
     }
 
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
-
 
 impl PointerHandler for SimpleLayer {
     fn pointer_frame(
@@ -242,21 +249,24 @@ impl PointerHandler for SimpleLayer {
             }
             match event.kind {
                 Enter { .. } => {
-                    println!("Pointer entered @{:?}", event.position);
+                    log::trace!("Pointer entered @{:?}", event.position);
                 }
                 Leave { .. } => {
-                    println!("Pointer left");
+                    log::trace!("Pointer left");
                 }
                 Motion { .. } => {}
                 Press { button, .. } => {
-                    println!("Press {:x} @ {:?}", button, event.position);
-                    self.shift = self.shift.xor(Some(0));
+                    log::trace!("Press {:x} @ {:?}", button, event.position);
                 }
                 Release { button, .. } => {
-                    println!("Release {:x} @ {:?}", button, event.position);
+                    log::trace!("Release {:x} @ {:?}", button, event.position);
                 }
-                Axis { horizontal, vertical, .. } => {
-                    println!("Scroll H:{horizontal:?}, V:{vertical:?}");
+                Axis {
+                    horizontal,
+                    vertical,
+                    ..
+                } => {
+                    log::trace!("Scroll H:{horizontal:?}, V:{vertical:?}");
                 }
             }
         }
@@ -277,39 +287,75 @@ impl SimpleLayer {
 
         let (buffer, canvas) = self
             .pool
-            .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888)
+            .create_buffer(
+                width as i32,
+                height as i32,
+                stride,
+                wl_shm::Format::Argb8888,
+            )
             .expect("create buffer");
 
         // Draw to the window:
         {
-            let shift = self.shift.unwrap_or(0);
-            canvas.chunks_exact_mut(4).enumerate().for_each(|(index, chunk)| {
-                let x = ((index + shift as usize) % width as usize) as u32;
-                let y = (index / width as usize) as u32;
+            canvas
+                .chunks_exact_mut(4)
+                .enumerate()
+                .for_each(|(_idx, chunk)| {
+                    let array: &mut [u8; 4] = chunk.try_into().unwrap();
+                    *array = color::BASE.argb8888();
+                });
+        }
 
-                let a = 0xFF;
-                let r = u32::min(((width - x) * 0xFF) / width, ((height - y) * 0xFF) / height);
-                let g = u32::min((x * 0xFF) / width, ((height - y) * 0xFF) / height);
-                let b = u32::min(((width - x) * 0xFF) / width, (y * 0xFF) / height);
-                let color = (a << 24) + (r << 16) + (g << 8) + b;
+        let pixel_height = height as usize;
 
-                let array: &mut [u8; 4] = chunk.try_into().unwrap();
-                *array = color.to_le_bytes();
-            });
+        let scale = Scale {
+            x: height as f32 * 2.0,
+            y: height as f32,
+        };
 
-            if let Some(shift) = &mut self.shift {
-                *shift = (*shift + 1) % width;
+        let v_metrics = draw::DEJAVUSANS_MONO.v_metrics(scale);
+        let offset = point(0.0, v_metrics.ascent);
+
+        let glyphs: Vec<_> = draw::DEJAVUSANS_MONO
+            .layout("10:00:00", scale, offset)
+            .collect();
+
+        for gly in glyphs {
+            if let Some(bb) = gly.pixel_bounding_box() {
+                gly.draw(|x, y, v| {
+                    let start_x = x as i32 + bb.min.x;
+                    let start_y = y as i32 + bb.min.y;
+                    // There's still a possibility that the glyph clips the boundaries of the bitmap
+                    if start_x >= 0
+                        && start_x < width as i32
+                        && start_y >= 0
+                        && start_y < pixel_height as i32
+                    {
+                        let start_idx = 4 * (start_x as u32 + start_y as u32 * width);
+
+                        let argb = color::ROSE.dilute(v).argb8888();
+                        for (idx, c) in (0..).zip(argb) {
+                            canvas[start_idx as usize + idx] = c;
+                        }
+                    }
+                });
             }
         }
 
         // Damage the entire window
-        self.layer.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
+        self.layer
+            .wl_surface()
+            .damage_buffer(0, 0, width as i32, height as i32);
 
         // Request our next frame
-        self.layer.wl_surface().frame(qh, self.layer.wl_surface().clone());
+        self.layer
+            .wl_surface()
+            .frame(qh, self.layer.wl_surface().clone());
 
         // Attach and commit to present.
-        buffer.attach_to(self.layer.wl_surface()).expect("buffer attach");
+        buffer
+            .attach_to(self.layer.wl_surface())
+            .expect("buffer attach");
         self.layer.commit();
 
         // TODO save and reuse buffer when the window size is unchanged.  This is especially
