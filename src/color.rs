@@ -2,10 +2,10 @@ use lazy_static::lazy_static;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
 }
 
 impl Color {
@@ -32,11 +32,21 @@ impl Color {
             r: self.r,
             b: self.b,
             g: self.g,
-            a: strength.clamp(0.0,1.0),
+            a: strength.clamp(0.0, 1.0),
         }
     }
 
-    pub fn argb8888(self) -> [u8;4] {
+    pub fn blend(self, other: Self, mut ratio: f32) -> Self {
+        ratio = ratio.clamp(0.0, 1.0);
+        Self {
+            r: self.r + ((other.r - self.r) * ratio),
+            g: self.g + ((other.g - self.g) * ratio),
+            b: self.b + ((other.b - self.b) * ratio),
+            a: self.a + ((other.a - self.a) * ratio),
+        }
+    }
+
+    pub fn argb8888(self) -> [u8; 4] {
         let a = (self.a * 255.0) as u32;
         let r = (self.r * 255.0) as u32;
         let g = (self.g * 255.0) as u32;
@@ -62,4 +72,3 @@ lazy_static! {
     pub static ref H_MED: Color = Color::new_int(0x40, 0x3d, 0x52, 0xFF);
     pub static ref H_HIGH: Color = Color::new_int(0x52, 0x4f, 0x67, 0xFF);
 }
-

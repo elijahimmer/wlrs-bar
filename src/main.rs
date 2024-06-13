@@ -1,6 +1,9 @@
+pub mod clock;
 pub mod color;
 pub mod draw;
-use rusttype::{point, Scale};
+pub mod widget;
+
+use widget::{Align, Point, Rect, Widget};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -46,15 +49,29 @@ fn main() {
 
     let layer = layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("bar-wlrs"), None);
 
+    let (width, height) = (WIDTH as u32, HEIGHT as u32);
+
     // get every layer besides for the bottom
     const ANCHOR: Anchor = Anchor::BOTTOM.complement();
     layer.set_anchor(ANCHOR);
-    layer.set_size(WIDTH as u32, HEIGHT as u32);
-    layer.set_exclusive_zone(HEIGHT as i32);
+    layer.set_size(width, height);
+    layer.set_exclusive_zone(height as i32);
 
     layer.commit();
 
-    let pool = SlotPool::new(HEIGHT * 1000 * 4, &shm).expect("Failed to create pool");
+    let pool = SlotPool::new(height as usize * 1000 * 4, &shm).expect("Failed to create pool");
+
+    let canvas_size: Point = (width, height).into();
+    let canvas = canvas_size.extend(0, 0);
+
+    let clock = {
+        let clock_size = clock::Clock::recommended_size(canvas);
+        let clock_dims = Rect::from_size(canvas, clock_size, Align::Center, Align::Center);
+
+        Box::new(clock::Clock::new(clock_dims)) as Box<dyn Widget>
+    };
+
+    let widgets = vec![clock];
 
     let mut simple_layer = SimpleLayer {
         registry_state: RegistryState::new(&globals),
@@ -69,6 +86,8 @@ fn main() {
         height: HEIGHT as u32,
         layer,
         pointer: None,
+
+        widgets,
     };
 
     // We don't draw immediately, the configure will notify us when to first draw.
@@ -95,6 +114,8 @@ struct SimpleLayer {
     height: u32,
     layer: LayerSurface,
     pointer: Option<wl_pointer::WlPointer>,
+
+    widgets: Vec<Box<dyn Widget>>,
 }
 
 impl CompositorHandler for SimpleLayer {
@@ -183,6 +204,16 @@ impl LayerShellHandler for SimpleLayer {
             );
             self.width = configure.new_size.0;
             self.height = configure.new_size.1;
+        }
+
+        let canvas_size: Point = (self.width, self.height).into();
+        let canvas = canvas_size.extend(0, 0);
+
+        for w in self.widgets.iter_mut() {
+            let size = w.desired_size(canvas);
+            let dims = Rect::from_size(canvas, size, Align::Center, Align::Center);
+
+            w.update_dimensions(dims)
         }
 
         // Initiate the first draw.
@@ -296,51 +327,23 @@ impl SimpleLayer {
             .expect("create buffer");
 
         // Draw to the window:
-        {
-            canvas
-                .chunks_exact_mut(4)
-                .enumerate()
-                .for_each(|(_idx, chunk)| {
-                    let array: &mut [u8; 4] = chunk.try_into().unwrap();
-                    *array = color::BASE.argb8888();
-                });
-        }
+        canvas
+            .chunks_exact_mut(4)
+            .enumerate()
+            .for_each(|(_idx, chunk)| {
+                let array: &mut [u8; 4] = chunk.try_into().unwrap();
+                *array = color::SURFACE.argb8888();
+            });
 
-        let pixel_height = height as usize;
+        let canvas_size: Point = (width, height).into();
 
-        let scale = Scale {
-            x: height as f32 * 2.0,
-            y: height as f32,
-        };
-
-        let v_metrics = draw::DEJAVUSANS_MONO.v_metrics(scale);
-        let offset = point(0.0, v_metrics.ascent);
-
-        let glyphs: Vec<_> = draw::DEJAVUSANS_MONO
-            .layout("10:00:00", scale, offset)
-            .collect();
-
-        for gly in glyphs {
-            if let Some(bb) = gly.pixel_bounding_box() {
-                gly.draw(|x, y, v| {
-                    let start_x = x as i32 + bb.min.x;
-                    let start_y = y as i32 + bb.min.y;
-                    // There's still a possibility that the glyph clips the boundaries of the bitmap
-                    if start_x >= 0
-                        && start_x < width as i32
-                        && start_y >= 0
-                        && start_y < pixel_height as i32
-                    {
-                        let start_idx = 4 * (start_x as u32 + start_y as u32 * width);
-
-                        let argb = color::ROSE.dilute(v).argb8888();
-                        for (idx, c) in (0..).zip(argb) {
-                            canvas[start_idx as usize + idx] = c;
-                        }
-                    }
-                });
+        for wid in self.widgets.iter_mut() {
+            if let Err(err) = wid.draw(canvas, canvas_size) {
+                log::error!("widget failed to draw. error={err}");
             }
         }
+
+        //fn new(canvas_size: Point<u32>, pos: Point<u32>, size: Point<u32>) -> Self;
 
         // Damage the entire window
         self.layer
@@ -357,10 +360,6 @@ impl SimpleLayer {
             .attach_to(self.layer.wl_surface())
             .expect("buffer attach");
         self.layer.commit();
-
-        // TODO save and reuse buffer when the window size is unchanged.  This is especially
-        // useful if you do damage tracking, since you don't need to redraw the undamaged parts
-        // of the canvas.
     }
 }
 
