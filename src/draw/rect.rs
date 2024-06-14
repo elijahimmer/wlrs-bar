@@ -56,22 +56,11 @@ impl Rect {
         me
     }
 
-    pub fn contains(&self, p: Point) -> bool {
-        self.min.x <= p.x && p.x <= self.max.x && self.min.y <= p.y && p.y <= self.max.y
-    }
-
-    pub fn contains_rect(&self, r: Rect) -> bool {
-        self.min.x <= r.min.x
-            && self.min.y <= r.min.y
-            && self.max.x >= r.max.x
-            && self.max.y >= r.max.y
-    }
-
     pub fn draw(&self, color: crate::color::Color, ctx: &mut DrawCtx) {
         assert!(ctx.rect.contains_rect(*self));
 
         for x in self.min.x..self.max.x {
-            for y in self.min.y..=self.max.y {
+            for y in self.min.y..self.max.y {
                 ctx.put(Point { x, y }, color);
             }
         }
@@ -92,18 +81,8 @@ impl Rect {
     }
 
     pub fn damage_outline(&self, sur: WlSurface) {
-        sur.damage(
-            self.min.x as i32,
-            self.min.y as i32,
-            self.width() as i32 + 1,
-            1,
-        );
-        sur.damage(
-            self.min.x as i32,
-            self.max.y as i32,
-            self.width() as i32 + 1,
-            1,
-        );
+        sur.damage(self.min.x as i32, self.min.y as i32, self.width() as i32, 1);
+        sur.damage(self.min.x as i32, self.max.y as i32, self.width() as i32, 1);
         sur.damage(
             self.min.x as i32,
             self.min.y as i32,
@@ -114,7 +93,7 @@ impl Rect {
             self.max.x as i32,
             self.min.y as i32,
             1,
-            self.height() as i32,
+            self.height() as i32 + 1,
         );
     }
 
@@ -142,6 +121,20 @@ impl Rect {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
         }
+    }
+    pub fn smallest(&self, other: Rect) -> Rect {
+        Self::new(self.min.max(other.min), self.max.min(other.max))
+    }
+
+    pub fn contains(&self, p: Point) -> bool {
+        self.min.x <= p.x && p.x <= self.max.x && self.min.y <= p.y && p.y <= self.max.y
+    }
+
+    pub fn contains_rect(&self, r: Rect) -> bool {
+        self.min.x <= r.min.x
+            && self.min.y <= r.min.y
+            && self.max.x >= r.max.x
+            && self.max.y >= r.max.y
     }
 }
 

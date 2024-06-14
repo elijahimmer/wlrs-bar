@@ -13,7 +13,9 @@ pub struct Clock {
     pub scale: Scale,
     pub rect: Rect,
     pub hours: TextBox,
+    pub spacer1: TextBox,
     pub minutes: TextBox,
+    pub spacer2: TextBox,
     pub seconds: TextBox,
 }
 
@@ -26,7 +28,7 @@ impl Default for Clock {
 impl Clock {
     pub fn new() -> Self {
         log::info!("Initalizing Clock");
-        let scale = Scale::uniform(128.0);
+        let scale = Scale::uniform(crate::app::HEIGHT as f32);
 
         let fg = *color::ROSE;
         let bg = *color::SURFACE;
@@ -35,11 +37,16 @@ impl Clock {
         let minutes = TextBox::new("00".to_string(), scale, fg, bg);
         let seconds = TextBox::new("00".to_string(), scale, fg, bg);
 
+        let spacer1 = TextBox::new("".to_string(), scale, fg, bg);
+        let spacer2 = TextBox::new("".to_string(), scale, fg, bg);
+
         Self {
             scale,
             rect: Rect::default(),
             hours,
+            spacer1,
             minutes,
+            spacer2,
             seconds,
         }
     }
@@ -70,9 +77,18 @@ impl Widget for Clock {
         debug_assert_eq!(text_size, self.minutes.desired_size());
         debug_assert_eq!(text_size, self.seconds.desired_size());
 
-        self.hours.rect = Rect::place_at(rect, text_size, Align::Start, Align::Center);
-        self.minutes.rect = Rect::place_at(rect, text_size, Align::Center, Align::Center);
-        self.seconds.rect = Rect::place_at(rect, text_size, Align::End, Align::Center);
+        let hours_rect = Rect::place_at(rect, text_size, Align::Start, Align::Center);
+        let minutes_rect = Rect::place_at(rect, text_size, Align::Center, Align::Center);
+        let seconds_rect = Rect::place_at(rect, text_size, Align::End, Align::Center);
+
+        let spacer1_rect = hours_rect.smallest(minutes_rect);
+        let spacer2_rect = minutes_rect.smallest(seconds_rect);
+
+        self.hours.resize(hours_rect);
+        self.spacer1.resize(spacer1_rect);
+        self.minutes.resize(minutes_rect);
+        self.spacer2.resize(spacer2_rect);
+        self.seconds.resize(seconds_rect);
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {

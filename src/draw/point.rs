@@ -1,7 +1,7 @@
 use crate::draw::Rect;
 use crate::utils::cmp;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Point {
     pub x: u32,
     pub y: u32,
@@ -20,6 +20,20 @@ impl Point {
             min: Point { x: min_x, y: min_y },
             max: Point { x: max_x, y: max_y },
         }
+    }
+
+    pub fn min(self, other: Point) -> Point {
+        let (min_x, _max_x) = cmp(self.x, other.x);
+        let (min_y, _max_y) = cmp(self.y, other.y);
+
+        Point { x: min_x, y: min_y }
+    }
+
+    pub fn max(self, other: Point) -> Point {
+        let (_min_x, max_x) = cmp(self.x, other.x);
+        let (_min_y, max_y) = cmp(self.y, other.y);
+
+        Point { x: max_x, y: max_y }
     }
 }
 

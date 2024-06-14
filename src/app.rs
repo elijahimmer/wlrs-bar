@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 128;
+pub const HEIGHT: u32 = 32;
 
 pub struct App {
     pub connection: Connection,
@@ -350,12 +350,7 @@ impl App {
             ctx.damage.clear();
         } else {
             let damage = ctx.damage.clone();
-            for mut dam in damage {
-                //dam.min.x -= 1;
-                //dam.min.y -= 1;
-                //dam.max.x += 1;
-                //dam.max.y += 1;
-
+            for dam in damage {
                 surface.damage_buffer(
                     dam.min.x as i32,
                     dam.min.y as i32,

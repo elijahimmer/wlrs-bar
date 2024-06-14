@@ -96,8 +96,11 @@ impl Widget for TextBox {
                             .and_then(|gly_old| gly_old.pixel_bounding_box())
                         {
                             let bounding = rect.bounding(bb_old.into());
+                            debug_assert!(bounding.contains_rect(bb_old.into()));
+                            debug_assert!(bounding.contains_rect(rect));
+
                             ctx.damage.push(bounding);
-                            bounding.draw(self.bg, ctx)
+                            bounding.draw(self.bg, ctx);
                             //self.rect.draw(self.bg, ctx);
                         } else {
                             ctx.damage.push(rect);
