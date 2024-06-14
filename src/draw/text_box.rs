@@ -7,18 +7,20 @@ use rusttype::Scale;
 
 #[derive(Clone)]
 pub struct TextBox {
-    pub scale_provided: Scale,
-    pub scale: Scale,
-    pub rect: Rect,
+    scale_provided: Scale,
+    scale: Scale,
+    rect: Rect,
     pub text: String,
     pub fg: Color,
     pub bg: Color,
+    
+    name: &'static str,
     last_draw_text: String,
     redraw: bool,
 }
 
 impl TextBox {
-    pub fn new(text: String, scale: Scale, fg: Color, bg: Color) -> Self {
+    pub fn new(name: &'static str, text: String, scale: Scale, fg: Color, bg: Color) -> Self {
         Self {
             scale_provided: scale,
             scale,
@@ -26,6 +28,7 @@ impl TextBox {
             text,
             fg,
             bg,
+            name,
             last_draw_text: "".to_string(),
             redraw: false,
         }
@@ -35,10 +38,10 @@ impl TextBox {
         if rect.height() >= self.scale_provided.y as u32
             && rect.width() >= self.scale_provided.x as u32 * self.text.len() as u32 / 2
         {
-            log::debug!("text box using provided scale");
+            log::debug!("text box '{}' using provided scale", self.name);
             self.scale = self.scale_provided;
         } else {
-            log::debug!("text box reducing scale");
+            log::debug!("text box '{}' reducing scale", self.name);
             self.scale =
                 Scale::uniform((rect.width() / self.text.len() as u32).min(rect.height()) as f32);
         }
@@ -58,7 +61,7 @@ impl Widget for TextBox {
     }
 
     fn resize(&mut self, rect: Rect) {
-        log::debug!("text box resized from {:?} to {:?}", self.rect, rect);
+        log::debug!("text box '{}' resized from {:?} to {:?}", self.name, self.rect, rect);
         self.update_scale(rect);
         self.rect = rect;
         self.redraw = true;

@@ -33,12 +33,12 @@ impl Clock {
         let fg = *color::ROSE;
         let bg = *color::SURFACE;
 
-        let hours = TextBox::new("00".to_string(), scale, fg, bg);
-        let minutes = TextBox::new("00".to_string(), scale, fg, bg);
-        let seconds = TextBox::new("00".to_string(), scale, fg, bg);
+        let hours = TextBox::new("hours", "00".to_string(), scale, fg, bg);
+        let minutes = TextBox::new("minutes", "00".to_string(), scale, fg, bg);
+        let seconds = TextBox::new("seconds", "00".to_string(), scale, fg, bg);
 
-        let spacer1 = TextBox::new("".to_string(), scale, fg, bg);
-        let spacer2 = TextBox::new("".to_string(), scale, fg, bg);
+        let spacer1 = TextBox::new("spacer1", "".to_string(), scale, fg, bg);
+        let spacer2 = TextBox::new("spacer2", "".to_string(), scale, fg, bg);
 
         Self {
             scale,
@@ -95,7 +95,9 @@ impl Widget for Clock {
         self.update_time();
 
         self.hours.draw(ctx)?;
+        self.spacer1.draw(ctx)?;
         self.minutes.draw(ctx)?;
+        self.spacer2.draw(ctx)?;
         self.seconds.draw(ctx)?;
 
         Ok(())
