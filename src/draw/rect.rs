@@ -9,6 +9,7 @@ pub enum Align {
     Start,
     Center,
     End,
+    CenterAt(f32),
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -21,6 +22,8 @@ impl Rect {
     pub fn new(a: Point, b: Point) -> Self {
         let (min_x, max_x) = cmp(a.x, b.x);
         let (min_y, max_y) = cmp(a.y, b.y);
+        assert!(min_x <= max_x);
+        assert!(min_y <= max_y);
 
         Self {
             min: Point { x: min_x, y: min_y },
@@ -37,14 +40,28 @@ impl Rect {
             Align::Start => (container.min.x, container.min.x + size.x),
             Align::End => (container.max.x - size.x, container.max.x),
             Align::Center => (center_x - size.x / 2, center_x + size.x / 2),
+            Align::CenterAt(ratio) => {
+                assert!((0.0..=1.0).contains(&ratio));
+                let a: u32 = (container.min.x as f32 + container.width() as f32 * ratio) as u32;
+                let b = a + size.x;
+                (a, b)
+            }
         };
+        assert!(min_x <= max_x);
 
         let center_y = (container.min.y + container.max.y) / 2;
         let (min_y, max_y) = match v_align {
             Align::Start => (container.min.y, container.min.y + size.y),
             Align::End => (container.max.y - size.y, container.max.y),
             Align::Center => (center_y - size.y / 2, center_y + size.y / 2),
+            Align::CenterAt(ratio) => {
+                assert!((0.0..=1.0).contains(&ratio));
+                let a: u32 = (container.min.y as f32 + container.height() as f32 * ratio) as u32;
+                let b = a + size.y;
+                (a, b)
+            }
         };
+        assert!(min_y <= max_y);
 
         let me = Self {
             min: Point { x: min_x, y: min_y },
@@ -69,12 +86,12 @@ impl Rect {
     pub fn draw_outline(&self, color: crate::color::Color, ctx: &mut DrawCtx) {
         assert!(ctx.rect.contains_rect(*self));
 
-        for x in self.min.x..=self.max.x {
+        for x in self.min.x..self.max.x {
             ctx.put(Point { x, y: self.min.y }, color);
             ctx.put(Point { x, y: self.max.y }, color);
         }
 
-        for y in self.min.y + 1..self.max.y {
+        for y in self.min.y..self.max.y {
             ctx.put(Point { x: self.min.x, y }, color);
             ctx.put(Point { x: self.max.x, y }, color);
         }

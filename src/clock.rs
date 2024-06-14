@@ -29,16 +29,17 @@ impl Clock {
     pub fn new() -> Self {
         log::info!("Initalizing Clock");
         let scale = Scale::uniform(crate::app::HEIGHT as f32);
+        let spacer_scale = Scale::uniform(crate::app::HEIGHT as f32 / 1.5);
 
-        let fg = *color::ROSE;
         let bg = *color::SURFACE;
-
+        let fg = *color::ROSE;
         let hours = TextBox::new("hours", "00".to_string(), scale, fg, bg);
         let minutes = TextBox::new("minutes", "00".to_string(), scale, fg, bg);
         let seconds = TextBox::new("seconds", "00".to_string(), scale, fg, bg);
 
-        let spacer1 = TextBox::new("spacer1", "".to_string(), scale, fg, bg);
-        let spacer2 = TextBox::new("spacer2", "".to_string(), scale, fg, bg);
+        let fg = *color::FOAM;
+        let spacer1 = TextBox::new("spacer1", "".to_string(), spacer_scale, fg, bg);
+        let spacer2 = TextBox::new("spacer2", "".to_string(), spacer_scale, fg, bg);
 
         Self {
             scale,
@@ -81,8 +82,31 @@ impl Widget for Clock {
         let minutes_rect = Rect::place_at(rect, text_size, Align::Center, Align::Center);
         let seconds_rect = Rect::place_at(rect, text_size, Align::End, Align::Center);
 
-        let spacer1_rect = hours_rect.smallest(minutes_rect);
-        let spacer2_rect = minutes_rect.smallest(seconds_rect);
+        let spacer_text_size = self.spacer1.desired_size();
+        debug_assert_eq!(spacer_text_size, self.spacer2.desired_size());
+
+        let mut spacer1_rect_bounding = hours_rect.bounding(minutes_rect);
+        spacer1_rect_bounding.min.y = rect.min.y;
+        spacer1_rect_bounding.max.y = rect.max.y;
+        debug_assert!(spacer1_rect_bounding.width() > 0);
+        debug_assert_eq!(spacer1_rect_bounding.height(), rect.height());
+
+        let spacer2_rect_bounding = minutes_rect.bounding(seconds_rect);
+        debug_assert!(spacer2_rect_bounding.width() > 0);
+        debug_assert_eq!(spacer2_rect_bounding.height(), rect.height());
+
+        let spacer1_rect = Rect::place_at(
+            spacer1_rect_bounding,
+            spacer_text_size,
+            Align::Center,
+            Align::Center,
+        );
+        let spacer2_rect = Rect::place_at(
+            spacer2_rect_bounding,
+            spacer_text_size,
+            Align::Center,
+            Align::Center,
+        );
 
         self.hours.resize(hours_rect);
         self.spacer1.resize(spacer1_rect);
@@ -92,12 +116,23 @@ impl Widget for Clock {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+        if ctx.full_redraw {
+            //self.hours
+            //    .rect
+            //    .smallest(self.minutes.rect)
+            //    .draw_outline(*color::LOVE, ctx);
+            //self.spacer1.draw(ctx)?;
+
+            //self.minutes
+            //    .rect
+            //    .smallest(self.seconds.rect)
+            //    .draw_outline(*color::IRIS, ctx);
+            //self.spacer2.draw(ctx)?;
+        }
         self.update_time();
 
         self.hours.draw(ctx)?;
-        self.spacer1.draw(ctx)?;
         self.minutes.draw(ctx)?;
-        self.spacer2.draw(ctx)?;
         self.seconds.draw(ctx)?;
 
         Ok(())

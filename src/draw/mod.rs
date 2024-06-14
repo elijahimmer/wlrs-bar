@@ -35,7 +35,10 @@ impl DrawCtx<'_> {
     pub fn put(&mut self, pnt: Point, color: Color) {
         assert!(self.rect.contains(pnt));
 
-        let idx: usize = 4 * (pnt.x + pnt.y * self.rect.max.x) as usize;
+        assert!(pnt.x < self.rect.max.x);
+        assert!(pnt.y < self.rect.max.y);
+
+        let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;
 
         let array: &mut [u8; 4] = (&mut self.canvas[idx..idx + 4]).try_into().unwrap();
         *array = color.argb8888();
