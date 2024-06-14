@@ -3,108 +3,93 @@ use chrono::Timelike;
 use rusttype::Scale;
 
 use crate::color;
-use crate::draw::FONT;
-use crate::widget::{Point, Rect};
-
-//pub struct TwoDigits {
-//    pub dims: Rect,
-//    pub value: u8,
-//}
-
-#[derive(Clone, Copy)]
-pub struct Clock {
-    pub scale: Scale,
-    pub dims: Rect,
-    //pub hours: TwoDigits,
-    //pub minutes: TwoDigits,
-    //pub seconds: TwoDigits,
-}
+use crate::draw::{Align, DrawCtx, Point, Rect, TextBox};
+use crate::widget::Widget;
 
 pub const NUM_CHARS: u32 = 8;
 
-impl crate::widget::Widget for Clock {
-    fn new(dims: Rect) -> Self {
-        log::info!("Initalizing Clock at dims: {dims:?}");
-        let scale = Scale::uniform(32.0); //(dims.width / NUM_CHARS).min(dims.height) as f32);
+#[derive(Clone)]
+pub struct Clock {
+    pub scale: Scale,
+    pub rect: Rect,
+    pub hours: TextBox,
+    pub minutes: TextBox,
+    pub seconds: TextBox,
+}
 
-        let time = chrono::Local::now();
+impl Default for Clock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Clock {
+    pub fn new() -> Self {
+        log::info!("Initalizing Clock");
+        let scale = Scale::uniform(128.0);
+
+        let fg = *color::ROSE;
+        let bg = *color::SURFACE;
+
+        let hours = TextBox::new("00".to_string(), scale, fg, bg);
+        let minutes = TextBox::new("00".to_string(), scale, fg, bg);
+        let seconds = TextBox::new("00".to_string(), scale, fg, bg);
 
         Self {
             scale,
-            dims,
-            //hours: time.hour(),
-            //minutes: time.minute(),
-            //seconds: time.second(),
+            rect: Rect::default(),
+            hours,
+            minutes,
+            seconds,
         }
     }
-    fn recommended_size(container: Rect) -> Point {
-        let scale_factor = (container.width / NUM_CHARS).min(container.height);
-        let size: Point = (
-            (scale_factor * NUM_CHARS).min(container.width) / 2, // todo: Find out why I have to divide
-            // by 2 here...
-            scale_factor,
-        )
-            .into(); // 8 for the number of characters
 
-        debug_assert!(container.width >= size.x);
-        debug_assert!(container.height >= size.y);
-
-        size
-    }
-
-    fn desired_size(&self, container: Rect) -> Point {
-        Self::recommended_size(container)
-    }
-    fn draw(&mut self, canvas: &mut [u8], canvas_size: Point) -> Result<()> {
-        let (width, height) = (canvas_size.x, canvas_size.y);
-        let v_metrics = FONT.v_metrics(self.scale);
-        let offset = Point::new(self.dims.x, v_metrics.ascent as u32);
-
+    fn update_time(&mut self) {
         let time = chrono::Local::now();
-        let time_str = format!(
-            "{:02}{:02}{:02}",
-            time.hour(),
-            time.minute(),
-            time.second()
-        );
+        self.hours.text = format2digits(time.hour() as u8);
+        self.minutes.text = format2digits(time.minute() as u8);
+        self.seconds.text = format2digits(time.second() as u8);
+    }
+}
 
-        let glyphs: Vec<_> = FONT.layout(&time_str, self.scale, offset.into()).collect();
+impl Widget for Clock {
+    fn area(&self) -> Rect {
+        self.rect
+    }
 
-        for gly in glyphs {
-            if let Some(bb) = gly.pixel_bounding_box() {
-                let rect: Rect = bb.into();
-                rect.fill(*color::LOVE, canvas, canvas_size);
-                gly.draw(|x, y, v| {
-                    let start_x = x as i32 + bb.min.x;
-                    let start_y = y as i32 + bb.min.y;
+    fn desired_size(&self) -> Point {
+        Point::new(self.scale.x as u32 * NUM_CHARS / 2, self.scale.y as u32)
+    }
 
-                    // bounds check the indexes
-                    if start_x >= 0
-                        && start_x < width as i32
-                        && start_y >= 0
-                        && start_y < height as i32
-                    {
-                        let start_idx: usize =
-                            4 * (start_x as usize + start_y as usize * width as usize);
+    fn resize(&mut self, rect: Rect) {
+        log::info!("Moving Clock from: {:?} to {rect:?}", self.rect);
+        self.rect = rect;
 
-                        let argb = color::BASE.blend(*color::LOVE, v);
+        let text_size = self.hours.desired_size();
 
-                        let array: &mut [u8; 4] =
-                            (&mut canvas[start_idx..start_idx + 4]).try_into().unwrap();
-                        *array = argb.argb8888();
-                    }
-                });
-            } else {
-                log::warn!("glyph has no bounding box?")
-            }
-        }
+        debug_assert_eq!(text_size, self.minutes.desired_size());
+        debug_assert_eq!(text_size, self.seconds.desired_size());
+
+        self.hours.rect = Rect::place_at(rect, text_size, Align::Start, Align::Center);
+        self.minutes.rect = Rect::place_at(rect, text_size, Align::Center, Align::Center);
+        self.seconds.rect = Rect::place_at(rect, text_size, Align::End, Align::Center);
+    }
+
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+        self.update_time();
+
+        self.hours.draw(ctx)?;
+        self.minutes.draw(ctx)?;
+        self.seconds.draw(ctx)?;
 
         Ok(())
     }
+}
 
-    fn update_dimensions(&mut self, dimensions: Rect) {
-        log::info!("Resizing clock from: {:?}, to: {:?}", self.dims, dimensions);
-        self.dims = dimensions;
-        self.scale = Scale::uniform(32.0); //(self.dims.width / NUM_CHARS).min(self.dims.height) as f32);
-    }
+fn format2digits(n: u8) -> String {
+    let mut s = String::with_capacity(2);
+    s.push((b'0' + (n / 10)) as char);
+    s.push((b'0' + (n % 10)) as char);
+
+    s
 }

@@ -2,11 +2,9 @@ alias r := run
 alias n := nix
 
 run:
-	cargo clippy
-	export RUST_LOG=trace; cargo run 
-
-
-	 
+    cargo clippy
+    cargo fmt
+    RUST_LOG=trace RUST_BACKTRACE=1 cargo run 
 
 nix:
-	nix flake check --all-systems
+    nix flake check --all-systems

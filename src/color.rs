@@ -57,7 +57,7 @@ impl Color {
 
 lazy_static! {
     pub static ref BASE: Color = Color::new_int(0x19, 0x17, 0x24, 0xFF);
-    pub static ref SURFACE: Color = Color::new_int(0x1f, 0x1d, 0x26, 0xFF);
+    pub static ref SURFACE: Color = Color::new_int(0x1f, 0x1d, 0x2e, 0xFF);
     pub static ref OVERLAY: Color = Color::new_int(0x26, 0x23, 0x3a, 0xFF);
     pub static ref MUTED: Color = Color::new_int(0x6e, 0x6a, 0x86, 0xFF);
     pub static ref SUBTLE: Color = Color::new_int(0x90, 0x8c, 0xaa, 0xFF);
