@@ -55,6 +55,12 @@ impl Color {
     }
 }
 
+impl Default for Color {
+    fn default() -> Self {
+        *FOAM
+    }
+}
+
 lazy_static! {
     pub static ref BASE: Color = Color::new_int(0x19, 0x17, 0x24, 0xFF);
     pub static ref SURFACE: Color = Color::new_int(0x1f, 0x1d, 0x2e, 0xFF);

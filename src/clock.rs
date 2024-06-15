@@ -28,13 +28,13 @@ impl Clock<'_> {
             .fg(*color::ROSE)
             .desired_height(desired_height);
 
-        let hours = time_builder.clone().build("clock hours".to_owned());
+        let hours = time_builder.clone().build("clock   hours".to_owned());
         let minutes = time_builder.clone().build("clock minutes".to_owned());
         let seconds = time_builder.clone().build("clock seconds".to_owned());
 
         let spacer_builder = TextBox::builder()
             .text("".to_string())
-            .desired_height(desired_height / 10.0)
+            .desired_height(desired_height / 2.0)
             .fg(*color::PINE);
 
         let spacer1 = spacer_builder.clone().build("clock spacer1".to_owned());
@@ -55,9 +55,9 @@ impl Clock<'_> {
 
     fn update_time(&mut self) {
         let time = chrono::Local::now();
-        self.hours.text = format2digits(time.hour() as u8);
-        self.minutes.text = format2digits(time.minute() as u8);
-        self.seconds.text = format2digits(time.second() as u8);
+        self.hours.set_text(format2digits(time.hour() as u8));
+        self.minutes.set_text(format2digits(time.minute() as u8));
+        self.seconds.set_text(format2digits(time.second() as u8));
     }
 }
 
@@ -88,8 +88,8 @@ impl Widget for Clock<'_> {
                 &mut self.minutes,
                 &mut self.spacer1,
                 &mut self.spacer2,
-                &mut self.hours,
                 &mut self.seconds,
+                &mut self.hours,
             ],
             area,
         );

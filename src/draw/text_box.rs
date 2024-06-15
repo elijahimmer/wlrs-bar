@@ -5,34 +5,34 @@ use crate::widget::Widget;
 use anyhow::Result;
 use rusttype::{Font, PositionedGlyph};
 
+#[derive(Clone)]
 pub struct TextBox<'glyphs> {
     font: &'glyphs Font<'glyphs>,
 
-    pub text: String,
-    pub name: String,
+    text: String,
+    text_first_diff: u32,
+    name: String,
     pub fg: Color,
     pub bg: Color,
 
-    text_drawn_last: Option<String>,
-
+    glyphs_size: Point<f32>,
     glyphs: Option<Vec<PositionedGlyph<'glyphs>>>,
-    glyphs_drawn_last: Option<Vec<PositionedGlyph<'glyphs>>>,
     scale: Scale,
 
     area: Rect<f32>,
     desired_text_height: f32,
 
     redraw: bool,
+    rerender_text: bool,
 }
 
 fn render_glyphs<'a>(
     font: &'a Font<'a>,
     text: &str,
     scale: Scale,
-    x_offset: f32,
 ) -> (Vec<PositionedGlyph<'a>>, f32) {
     let v_metrics = font.v_metrics(scale);
-    let offset = Point::new(x_offset, v_metrics.ascent);
+    let offset = Point::new(0.0, v_metrics.ascent);
 
     let glyphs: Vec<_> = font.layout(text, scale, offset.into()).collect();
     let width = glyphs.last().map_or_else(
@@ -40,12 +40,17 @@ fn render_glyphs<'a>(
         |g| g.position().x + g.unpositioned().h_metrics().advance_width,
     );
 
-    (glyphs, width - x_offset)
+    (glyphs, width)
 }
 
 impl TextBox<'_> {
     pub fn set_text(&mut self, new_text: String) {
-        self.text = new_text;
+        let new_text = new_text.trim();
+        if new_text.is_empty() {
+            self.glyphs_size = Point::new(0.0, 0.0);
+        }
+        self.rerender_text = self.text != new_text;
+        self.text = new_text.to_string();
     }
 }
 
@@ -63,70 +68,99 @@ impl Widget for TextBox<'_> {
 
     fn desired_width(&self, height: f32) -> f32 {
         if self.text.is_empty() || height <= 0.0 {
+            log::debug!("'{}', desired_width, returning 0", self.name);
             return 0.0;
         }
 
-        let scale = Scale::uniform(height);
-        let (_glyphs, width) = render_glyphs(self.font, &self.text, scale, 0.0);
+        let scale = Scale::uniform(height.clamp(0.0, self.desired_text_height));
+        let (_glyphs, width) = render_glyphs(self.font, &self.text, scale);
 
         width
     }
 
     fn resize(&mut self, rect: Rect<f32>) {
-        let mut scale = Scale::uniform(rect.height());
-        let max_width = rect.width();
+        self.area = rect;
+        self.redraw = true;
+        self.rerender_text = false;
 
-        let (glyphs, width) = render_glyphs(self.font, &self.text, scale, rect.min.x);
+        let width_max = rect.width();
+        let height_used = rect.height().clamp(0.0, self.desired_text_height);
 
-        if width <= max_width {
-            log::trace!("'{}', resize, using provided scale", self.name);
+        if width_max <= 0.0 || height_used == 0.0 {
+            self.glyphs_size = Point::new(0.0, 0.0);
+            self.glyphs = None;
+            return;
+        }
+
+        self.scale = Scale::uniform(height_used);
+
+        let (glyphs, width_used) = render_glyphs(self.font, &self.text, self.scale);
+
+        if width_used <= width_max {
+            log::trace!("'{}', resize, using desired scale", self.name);
+            self.glyphs_size = Point::new(width_used, height_used);
             self.glyphs = Some(glyphs);
         } else {
-            let ratio = max_width / width;
+            let ratio = width_max / width_used;
             log::trace!(
                 "'{}', resize, area too small scaling to {ratio} times",
                 self.name
             );
-            debug_assert!(ratio <= 1.0);
+            debug_assert!((0.0..=1.0).contains(&ratio));
 
-            scale = Scale::uniform((rect.height() * ratio).floor());
-            log::trace!("'{}' calculated scale: {scale:?}", self.name);
-            let (new_glyphs, new_width) = render_glyphs(self.font, &self.text, scale, rect.min.x);
+            self.scale = Scale::uniform((width_max * ratio).floor());
+            log::trace!("'{}' calculated scale: {:?}", self.name, self.scale);
+            let (new_glyphs, width_used_new) = render_glyphs(self.font, &self.text, self.scale);
 
-            debug_assert!(new_width <= max_width);
+            debug_assert!(width_used_new <= width_max);
 
+            self.glyphs_size = Point::new(width_used_new, height_used);
             self.glyphs = Some(new_glyphs);
-        }
-
-        self.scale = scale;
-        self.text_drawn_last = None;
-        self.glyphs_drawn_last = None;
-        self.area = rect;
-        self.redraw = true;
+        };
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         let area: Rect<u32> = self.area.into();
-        //log::debug!("'{}', draw, area: {area:?}", self.name);
-
-        if ctx.full_redraw || self.redraw {
-            area.draw(self.bg, ctx);
-            //area.draw_outline(self.fg, ctx);
+        if self.glyphs_size.x <= 0.0 || self.glyphs_size.y <= 0.0 {
+            // glyphs are 0 width
+            return Ok(());
+        }
+        if !ctx.full_redraw && !self.redraw && !self.rerender_text {
+            return Ok(());
         }
 
-        if self.glyphs.is_none() {
-            let (glyphs, _width) =
-                render_glyphs(self.font, &self.text, self.scale, area.min.x as f32);
+        assert!(!self.text.is_empty());
+        assert!(self.glyphs.is_some());
+        assert!(self.area.size() >= self.glyphs_size);
+
+        let area_used = area.place_at(self.glyphs_size.into(), Align::Center, Align::Center);
+
+        if self.rerender_text {
+            log::trace!("'{}', draw, re-rendering glyphs", self.name);
+            let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             self.glyphs = Some(glyphs);
+            self.glyphs_size = Point::new(width, area_used.height() as f32);
+        } else {
+            log::trace!("'{}', draw, redrawing fully", self.name);
+            area.draw(self.bg, ctx);
         }
 
-        let glyphs = self.glyphs.as_ref().unwrap();
+        let glyphs_now = self
+            .glyphs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .zip(self.text.chars().fuse());
 
-        for gly in glyphs {
+        for (gly, ch) in glyphs_now {
             if let Some(bb) = gly.pixel_bounding_box() {
-                let rect: Rect<u32> = bb.into();
+                let mut rect: Rect<u32> = bb.into();
+                rect.min.y += area_used.min.y;
+                rect.max.y += area_used.min.y;
+                rect.min.x += area_used.min.x;
+                rect.max.x += area_used.min.x;
 
-                debug_assert!(self.area.contains_rect(rect.into()));
+                debug_assert!(area_used.contains_rect(rect));
 
                 ctx.damage.push(rect);
                 //rect.draw_outline(self.fg, ctx);
@@ -134,16 +168,17 @@ impl Widget for TextBox<'_> {
                     let color = self.bg.blend(self.fg, v);
                     let point = Point::new(rect.min.x + x, rect.min.y + y);
 
-                    debug_assert!(area.contains(point));
+                    debug_assert!(area_used.contains(point));
                     ctx.put(point, color);
                 })
             }
         }
 
-        if ctx.full_redraw || self.redraw {
-            self.redraw = false;
-            ctx.damage.push(area);
+        if self.rerender_text {
+            ctx.damage.push(area_used);
         }
+
+        self.redraw = false;
 
         Ok(())
     }
@@ -181,7 +216,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     }
 
     pub fn text(mut self, text: String) -> Self {
-        self.text = text;
+        self.text = text.trim().to_string();
         self
     }
 
@@ -211,10 +246,10 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
 
             scale: Scale::uniform(0.0),
             area: Default::default(),
-            text_drawn_last: None,
             glyphs: None,
-            glyphs_drawn_last: None,
-            redraw: true,
+            glyphs_size: Default::default(),
+            redraw: false,
+            rerender_text: false,
         }
     }
 }
