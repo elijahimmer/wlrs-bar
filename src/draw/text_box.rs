@@ -10,7 +10,7 @@ pub struct TextBox<'glyphs> {
     font: &'glyphs Font<'glyphs>,
 
     text: String,
-    text_first_diff: u32,
+    text_first_diff: usize,
     name: String,
     pub fg: Color,
     pub bg: Color,
@@ -45,6 +45,12 @@ fn render_glyphs<'a>(
 
 impl TextBox<'_> {
     pub fn set_text(&mut self, new_text: String) {
+        for (idx, (new, old)) in self.text.chars().zip(new_text.chars()).enumerate() {
+            if new != old {
+                self.text_first_diff = idx;
+                break;
+            }
+        }
         let new_text = new_text.trim();
         if new_text.is_empty() {
             self.glyphs_size = Point::new(0.0, 0.0);
@@ -125,7 +131,10 @@ impl Widget for TextBox<'_> {
             // glyphs are 0 width
             return Ok(());
         }
-        if !ctx.full_redraw && !self.redraw && !self.rerender_text {
+
+        let redraw_full = ctx.full_redraw || self.redraw;
+
+        if !redraw_full && !self.rerender_text {
             return Ok(());
         }
 
@@ -136,41 +145,51 @@ impl Widget for TextBox<'_> {
         let area_used = area.place_at(self.glyphs_size.into(), Align::Center, Align::Center);
 
         if self.rerender_text {
-            log::trace!("'{}', draw, re-rendering glyphs", self.name);
+            //log::trace!("'{}', draw, re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             self.glyphs = Some(glyphs);
             self.glyphs_size = Point::new(width, area_used.height() as f32);
         } else {
-            log::trace!("'{}', draw, redrawing fully", self.name);
+            //log::trace!("'{}', draw, redrawing fully", self.name);
             area.draw(self.bg, ctx);
         }
 
-        let glyphs_now = self
-            .glyphs
-            .as_ref()
-            .unwrap()
-            .iter()
-            .zip(self.text.chars().fuse());
+        //let glyphs_now = self
+        //    .glyphs
+        //    .as_ref()
+        //    .unwrap()
+        //    .iter()
+        //    .zip(self.text.chars().fuse());
 
-        for (gly, ch) in glyphs_now {
+        let mut bb_last = area_used;
+        bb_last.max.x = bb_last.min.x;
+
+        for (idx, gly) in self.glyphs.as_ref().unwrap().iter().enumerate() {
             if let Some(bb) = gly.pixel_bounding_box() {
-                let mut rect: Rect<u32> = bb.into();
-                rect.min.y += area_used.min.y;
-                rect.max.y += area_used.min.y;
-                rect.min.x += area_used.min.x;
-                rect.max.x += area_used.min.x;
+                let mut bb: Rect<u32> = bb.into();
 
-                debug_assert!(area_used.contains_rect(rect));
+                if idx == self.text_first_diff && !redraw_full {
+                    bb_last.max.x = area_used.max.x;
+                    //log::trace!("'{}', draw, filling back, {idx}", self.name);
+                    bb_last.draw(self.bg, ctx);
+                }
+                bb.min.y += area_used.min.y;
+                bb.max.y += area_used.min.y;
+                bb.min.x += area_used.min.x;
+                bb.max.x += area_used.min.x;
 
-                ctx.damage.push(rect);
-                //rect.draw_outline(self.fg, ctx);
+                debug_assert!(area_used.contains_rect(bb));
+
+                ctx.damage.push(bb);
                 gly.draw(|x, y, v| {
                     let color = self.bg.blend(self.fg, v);
-                    let point = Point::new(rect.min.x + x, rect.min.y + y);
+                    let point = Point::new(bb.min.x + x, bb.min.y + y);
 
                     debug_assert!(area_used.contains(point));
                     ctx.put(point, color);
-                })
+                });
+                //bb.draw_outline(self.fg, ctx);
+                bb_last.min.x = bb.max.x;
             }
         }
 
@@ -178,6 +197,7 @@ impl Widget for TextBox<'_> {
             ctx.damage.push(area_used);
         }
 
+        self.text_first_diff = 0;
         self.redraw = false;
 
         Ok(())
@@ -250,6 +270,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             glyphs_size: Default::default(),
             redraw: false,
             rerender_text: false,
+            text_first_diff: Default::default(),
         }
     }
 }
