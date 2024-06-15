@@ -27,56 +27,81 @@ impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Point<T> {
     }
 }
 
-impl<T, U> From<(U, U)> for Point<T>
-where
-    T: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-    U: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-{
-    fn from(v: (U, U)) -> Self {
-        Self::new(
-            T::from(v.0).expect("failed to convert number"),
-            T::from(v.1).expect("failed to convert number"),
-        )
-    }
-}
-
-impl<T, U> From<rusttype::Point<U>> for Point<T>
-where
-    T: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-    U: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-{
-    fn from(val: rusttype::Point<U>) -> Self {
-        Self::new(
-            T::from(val.x).expect("failed to convert number"),
-            T::from(val.y).expect("failed to convert number"),
-        )
-    }
-}
-
-impl<T, U> From<Point<U>> for rusttype::Point<T>
-where
-    T: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-    U: FromPrimitive + NumCast + Num + Copy + PartialOrd,
-{
-    fn from(val: Point<U>) -> Self {
-        Self {
-            x: T::from(val.x).expect("failed to convert number"),
-            y: T::from(val.y).expect("failed to convert number"),
+macro_rules! from_impl_same {
+    ($($t:ident)*) => ($(
+        impl From<rusttype::Point<$t>> for Point<$t> {
+            fn from(val: rusttype::Point<$t>) -> Self {
+                Self::new(val.x, val.y)
+            }
         }
-    }
+
+        impl From<Point<$t>> for rusttype::Point<$t> {
+            fn from(val: Point<$t>) -> Self {
+                Self { x: val.x, y: val.y }
+            }
+        }
+            )*)
 }
 
-impl From<Point<u32>> for Point<f32> {
-    fn from(val: Point<u32>) -> Self {
-        Self::new(val.x as f32, val.y as f32)
-    }
+macro_rules! from_impl_other {
+    ($t:ident, $f:ident) => {
+        impl From<rusttype::Point<$t>> for Point<$f> {
+            fn from(val: rusttype::Point<$t>) -> Self {
+                Self::new(
+                    <$f as NumCast>::from(val.x).unwrap(),
+                    <$f as NumCast>::from(val.y).unwrap(),
+                )
+            }
+        }
+
+        impl From<Point<$t>> for rusttype::Point<$f> {
+            fn from(val: Point<$t>) -> Self {
+                Self {
+                    x: <$f as NumCast>::from(val.x).unwrap(),
+                    y: <$f as NumCast>::from(val.y).unwrap(),
+                }
+            }
+        }
+
+        impl From<($t, $t)> for Point<$f> {
+            fn from(val: ($t, $t)) -> Self {
+                Self {
+                    x: <$f as NumCast>::from(val.0).unwrap(),
+                    y: <$f as NumCast>::from(val.1).unwrap(),
+                }
+            }
+        }
+    };
 }
 
-impl From<Point<f32>> for Point<u32> {
-    fn from(val: Point<f32>) -> Self {
-        Self::new(val.x.ceil() as u32, val.y.ceil() as u32)
-    }
+macro_rules! from_impl_self {
+    ($t:ident, $($f:ident)*) => ($(
+        impl From<Point<$t>> for Point<$f> {
+            fn from(val: Point<$t>) -> Self {
+                Self::new(<$f as NumCast>::from(val.x).unwrap(), <$f as NumCast>::from(val.y).unwrap())
+            }
+        }
+
+        from_impl_other!($t, $f);
+        //from_impl_other!($t, $t);
+    )*)
 }
+
+from_impl_self! { u8, u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { u16, u8 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { u32, u8 u16 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { u64, u8 u16 u32 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { u128, u8 u16 u32 u64 usize i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { usize, u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { i8, u8 u16 u32 u64 u128 usize i16 i32 i64 i128 isize f32 f64 }
+from_impl_self! { i16, u8 u16 u32 u64 u128 usize i8 i32 i64 i128 isize f32 f64 }
+from_impl_self! { i32, u8 u16 u32 u64 u128 usize i8 i16 i64 i128 isize f32 f64 }
+from_impl_self! { i64, u8 u16 u32 u64 u128 usize i8 i16 i32 i128 isize f32 f64 }
+from_impl_self! { i128, u8 u16 u32 u128 u64 usize i8 i16 i32 i64 isize f32 f64 }
+from_impl_self! { isize, u8 u16 u32 usize u64 u128 i8 i16 i32 i64 i128 f32 f64 }
+from_impl_self! { f32, u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f64 }
+from_impl_self! { f64, u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 }
+from_impl_same! { u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
 
 use std::ops::Add;
 impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Add<Self> for Point<T> {
