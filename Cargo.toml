@@ -11,6 +11,7 @@ chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 env_logger = "0.11.2"
 lazy_static = "1.4.0"
 log = "0.4.20"
+num-traits = "0.2.19"
 rusttype = "0.9.3"
 smithay-client-toolkit = "0.18.1"
 wayland-client = { version = "0.31.2", features = ["log"] }

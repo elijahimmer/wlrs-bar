@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 32;
+pub const HEIGHT: u32 = 64;
 
 pub struct App {
     pub connection: Connection,
@@ -47,7 +47,7 @@ pub struct App {
     pub height: u32,
     pub redraw: bool,
     pub widgets: Vec<Box<dyn Widget>>,
-    pub last_damage: Vec<Rect>,
+    pub last_damage: Vec<Rect<u32>>,
 }
 
 impl App {
@@ -75,6 +75,14 @@ impl App {
 
         let pool =
             SlotPool::new(4000 * HEIGHT as usize, &shm_state).expect("Failed to create pool");
+        //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
+
+        //let text_box = crate::draw::TextBox::builder("test box".to_owned())
+        //    .text("this is a test box".to_string())
+        //    .desired_height(HEIGHT as f32)
+        //    .build();
+
+        let clock = crate::clock::Clock::new("clock".to_string(), HEIGHT as f32);
 
         let mut me = Self {
             connection,
@@ -82,6 +90,7 @@ impl App {
             layer_shell,
             layer_surface,
             pointer: None,
+            widgets: vec![Box::new(clock)],
 
             shm_state,
             pool,
@@ -93,7 +102,6 @@ impl App {
             width: WIDTH,
             height: HEIGHT,
             redraw: true,
-            widgets: vec![Box::new(crate::clock::Clock::new())],
             last_damage: Vec::with_capacity(16),
         };
 
@@ -181,7 +189,7 @@ impl LayerShellHandler for App {
         _serial: u32,
     ) {
         if configure.new_size.0 == 0 || configure.new_size.1 == 0 {
-            self.width = 1000; // reasonable default since the requested width is 0
+            self.width = 1000; // reasonable default since the requested width would be 0 otherwise
             self.height = HEIGHT;
         } else {
             log::debug!(
@@ -193,12 +201,17 @@ impl LayerShellHandler for App {
             self.height = configure.new_size.1;
         }
 
-        let canvas_size = Point::new(self.width, self.height);
-        let canvas = canvas_size.extend_to(0, 0);
+        let (width, height) = (self.width as f32, self.height as f32);
+        let canvas_size = Point::new(width, height);
+        let canvas = canvas_size.extend_to(0.0, 0.0);
 
         for w in self.widgets.iter_mut() {
-            let size = w.desired_size();
-            let new_area = Rect::place_at(canvas, size, Align::Center, Align::Center);
+            let wid_height = w.desired_height().clamp(0.0, height);
+            let wid_width = w.desired_width(wid_height).clamp(0.0, width);
+
+            let size = Point::new(wid_width, wid_height);
+
+            let new_area = canvas.place_at(size, Align::Center, Align::Center);
             w.resize(new_area);
         }
 
@@ -325,14 +338,14 @@ impl App {
         //    dam.draw_outline(*crate::color::SURFACE, &mut ctx);
         //    dam.damage_outline(surface.clone());
         //}
-
-        debug_assert!(ctx.damage.is_empty());
+        //debug_assert!(ctx.damage.is_empty());
 
         self.last_damage.clear();
         ctx.damage = &mut self.last_damage;
 
         if self.redraw {
             rect.draw(*crate::color::SURFACE, &mut ctx);
+            //rect.draw_outline(*crate::color::PINE, &mut ctx);
         }
 
         for w in self.widgets.iter_mut() {

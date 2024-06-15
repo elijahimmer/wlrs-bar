@@ -22,21 +22,27 @@ pub fn font_width(scale: Scale) -> f32 {
     FONT.glyph('0').scaled(scale).h_metrics().advance_width
 }
 
+// which edge to align to
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
+pub enum Align {
+    Start,
+    #[default]
+    Center,
+    End,
+}
+
 use smithay_client_toolkit::shm::slot::Buffer;
 pub struct DrawCtx<'ctx> {
-    pub damage: &'ctx mut Vec<Rect>,
+    pub damage: &'ctx mut Vec<Rect<u32>>,
     pub buffer: &'ctx Buffer,
     pub canvas: &'ctx mut [u8],
-    pub rect: Rect,
+    pub rect: Rect<u32>,
     pub full_redraw: bool,
 }
 
 impl DrawCtx<'_> {
-    pub fn put(&mut self, pnt: Point, color: Color) {
-        assert!(self.rect.contains(pnt));
-
-        assert!(pnt.x < self.rect.max.x);
-        assert!(pnt.y < self.rect.max.y);
+    pub fn put(&mut self, pnt: Point<u32>, color: Color) {
+        debug_assert!(self.rect.contains(pnt));
 
         let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;
 
