@@ -5,14 +5,14 @@ use num_traits::{FromPrimitive, Num, NumCast};
 use wayland_client::protocol::wl_surface::WlSurface;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct Rect<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> {
+pub struct Rect<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> {
     pub min: Point<T>,
     pub max: Point<T>,
 }
 
 impl<T> Rect<T>
 where
-    T: FromPrimitive + NumCast + Num + Copy + PartialOrd,
+    T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug,
 {
     pub fn new(a: Point<T>, b: Point<T>) -> Self {
         let (min_x, max_x) = cmp(a.x, b.x);
@@ -27,8 +27,8 @@ where
     }
 
     pub fn place_at(self, size: Point<T>, h_align: Align, v_align: Align) -> Self {
-        assert!(self.max.x >= self.min.x + size.x);
-        assert!(self.max.y >= self.min.y + size.y);
+        debug_assert!(self.max.x >= self.min.x + size.x);
+        debug_assert!(self.max.y >= self.min.y + size.y);
 
         let center_x = (self.min.x + self.max.x) / T::from_u32(2).unwrap();
         let (min_x, max_x) = match h_align {
@@ -38,8 +38,18 @@ where
                 center_x - size.x / T::from_u32(2).unwrap(),
                 center_x + size.x / T::from_u32(2).unwrap(),
             ),
+            Align::CenterAt(ratio) => (
+                T::from_f32(
+                    T::to_f32(&center_x).unwrap() - (T::to_f32(&size.x).unwrap() * (1.0 - ratio)),
+                )
+                .unwrap(),
+                T::from_f32(T::to_f32(&center_x).unwrap() + (T::to_f32(&size.x).unwrap() * ratio))
+                    .unwrap(),
+            ),
         };
-        assert!(min_x <= max_x);
+        //log::trace!("self: {self:?}");
+        //log::trace!("min_x: {min_x:?}, max_x: {max_x:?}");
+        debug_assert!(min_x <= max_x);
 
         let center_y = (self.min.y + self.max.y) / T::from_u32(2).unwrap();
         let (min_y, max_y) = match v_align {
@@ -49,7 +59,16 @@ where
                 center_y - size.y / T::from_u32(2).unwrap(),
                 center_y + size.y / T::from_u32(2).unwrap(),
             ),
+            Align::CenterAt(ratio) => (
+                T::from_f32(
+                    T::to_f32(&center_y).unwrap() - (T::to_f32(&size.y).unwrap() * (1.0 - ratio)),
+                )
+                .unwrap(),
+                T::from_f32(T::to_f32(&center_y).unwrap() + (T::to_f32(&size.y).unwrap() * ratio))
+                    .unwrap(),
+            ),
         };
+        //log::trace!("min_y: {min_y:?}, max_y: {max_y:?}");
         debug_assert!(min_y <= max_y);
 
         let min = Point::new(min_x, min_y);
@@ -95,7 +114,14 @@ where
     }
 
     pub fn contains(self, p: Point<T>) -> bool {
-        (self.min.x..=self.max.x).contains(&p.x) && (self.min.y..=self.max.y).contains(&p.y)
+        let y_min: u32 = <u32 as NumCast>::from(self.min.y).unwrap();
+        let y_max: u32 = <u32 as NumCast>::from(self.max.y).unwrap();
+        let x_min: u32 = <u32 as NumCast>::from(self.min.x).unwrap();
+        let x_max: u32 = <u32 as NumCast>::from(self.max.x).unwrap();
+        let p_x: u32 = <u32 as NumCast>::from(p.x).unwrap();
+        let p_y: u32 = <u32 as NumCast>::from(p.y).unwrap();
+
+        (x_min..=x_max).contains(&p_x) && (y_min..=y_max).contains(&p_y)
     }
 
     pub fn contains_rect(self, r: Self) -> bool {
@@ -106,8 +132,6 @@ where
     }
 
     pub fn draw(self, color: crate::color::Color, ctx: &mut DrawCtx) {
-        //assert!(ctx.rect.contains_rect(self.into()));
-
         let y_min: u32 = <u32 as NumCast>::from(self.min.y).unwrap();
         let y_max: u32 = <u32 as NumCast>::from(self.max.y).unwrap();
         let x_min: u32 = <u32 as NumCast>::from(self.min.x).unwrap();
@@ -121,8 +145,6 @@ where
     }
 
     pub fn draw_outline(self, color: crate::color::Color, ctx: &mut DrawCtx) {
-        //assert!(ctx.rect.contains_rect(self.into()));
-
         let x_min: u32 = <u32 as NumCast>::from(self.min.x).unwrap();
         let x_max: u32 = <u32 as NumCast>::from(self.max.x).unwrap();
         let y_min: u32 = <u32 as NumCast>::from(self.min.y).unwrap();
@@ -140,12 +162,12 @@ where
     }
 
     pub fn damage_outline(self, sur: WlSurface) {
-        let x_min: i32 = <i32 as NumCast>::from(self.min.x).unwrap();
-        let x_max: i32 = <i32 as NumCast>::from(self.max.x).unwrap();
-        let y_min: i32 = <i32 as NumCast>::from(self.min.y).unwrap();
-        let y_max: i32 = <i32 as NumCast>::from(self.max.y).unwrap();
-        let width: i32 = <i32 as NumCast>::from(self.width()).unwrap();
-        let height: i32 = <i32 as NumCast>::from(self.height()).unwrap();
+        let x_min = <i32 as NumCast>::from(self.min.x).unwrap();
+        let x_max = <i32 as NumCast>::from(self.max.x).unwrap();
+        let y_min = <i32 as NumCast>::from(self.min.y).unwrap();
+        let y_max = <i32 as NumCast>::from(self.max.y).unwrap();
+        let width = <i32 as NumCast>::from(self.width()).unwrap();
+        let height = <i32 as NumCast>::from(self.height()).unwrap();
 
         sur.damage(x_min, y_min, width, 1);
         sur.damage(x_min, y_max, width, 1);
@@ -154,8 +176,14 @@ where
     }
 }
 
-macro_rules! from_impl_other {
-    ($t:ident, $f:ident) => {
+macro_rules! from_impl {
+    ($t:ty, $($f:ty)+) => ($(
+        impl From<Rect<$t>> for Rect<$f> {
+            fn from(val: Rect<$t>) -> Self {
+                Self::new(val.min.into(), val.max.into())
+            }
+        }
+
         impl From<rusttype::Rect<$t>> for Rect<$f> {
             fn from(val: rusttype::Rect<$t>) -> Self {
                 Self::new(val.min.into(), val.max.into())
@@ -188,18 +216,6 @@ macro_rules! from_impl_other {
                 }
             }
         }
-    };
-}
-
-macro_rules! from_impl {
-    ($t:ident, $($f:ident)*) => ($(
-        impl From<Rect<$t>> for Rect<$f> {
-            fn from(val: Rect<$t>) -> Self {
-                Self::new(val.min.into(), val.max.into())
-            }
-        }
-
-        from_impl_other!($t, $f);
     )*)
 }
 

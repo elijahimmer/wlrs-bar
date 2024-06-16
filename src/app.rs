@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 64;
+pub const HEIGHT: u32 = 30;
 
 pub struct App {
     pub connection: Connection,
@@ -379,6 +379,12 @@ impl App {
         ctx.buffer.attach_to(surface).unwrap();
 
         self.layer_surface.commit();
+
+        // hack to test all sizes above your own (until it hits some limit)
+        //self.layer_surface.set_size(WIDTH, self.height + 1);
+        //self.layer_surface
+        //    .set_exclusive_zone(self.height as i32 + 1);
+        //self.layer_surface.commit();
     }
 
     pub fn run_queue(&mut self, event_queue: &mut EventQueue<Self>) {

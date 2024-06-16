@@ -4,12 +4,12 @@ use crate::utils::{max, min};
 use num_traits::{FromPrimitive, Num, NumCast};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct Point<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> {
+pub struct Point<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> {
     pub x: T,
     pub y: T,
 }
 
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Point<T> {
+impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Point<T> {
     pub fn new(x: T, y: T) -> Self {
         Point { x, y }
     }
@@ -28,7 +28,7 @@ impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Point<T> {
 }
 
 macro_rules! from_impl_same {
-    ($($t:ident)*) => ($(
+    ($($t:ty)+) => ($(
         impl From<rusttype::Point<$t>> for Point<$t> {
             fn from(val: rusttype::Point<$t>) -> Self {
                 Self::new(val.x, val.y)
@@ -40,11 +40,17 @@ macro_rules! from_impl_same {
                 Self { x: val.x, y: val.y }
             }
         }
-            )*)
+    )*)
 }
 
-macro_rules! from_impl_other {
-    ($t:ident, $f:ident) => {
+macro_rules! from_impl_self {
+    ($t:ty, $($f:ty)+) => ($(
+        impl From<Point<$t>> for Point<$f> {
+            fn from(val: Point<$t>) -> Self {
+                Self::new(<$f as NumCast>::from(val.x).unwrap(), <$f as NumCast>::from(val.y).unwrap())
+            }
+        }
+
         impl From<rusttype::Point<$t>> for Point<$f> {
             fn from(val: rusttype::Point<$t>) -> Self {
                 Self::new(
@@ -71,19 +77,6 @@ macro_rules! from_impl_other {
                 }
             }
         }
-    };
-}
-
-macro_rules! from_impl_self {
-    ($t:ident, $($f:ident)*) => ($(
-        impl From<Point<$t>> for Point<$f> {
-            fn from(val: Point<$t>) -> Self {
-                Self::new(<$f as NumCast>::from(val.x).unwrap(), <$f as NumCast>::from(val.y).unwrap())
-            }
-        }
-
-        from_impl_other!($t, $f);
-        //from_impl_other!($t, $t);
     )*)
 }
 
@@ -104,7 +97,9 @@ from_impl_self! { f64, u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 }
 from_impl_same! { u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
 
 use std::ops::Add;
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Add<Self> for Point<T> {
+impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Add<Self>
+    for Point<T>
+{
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -116,7 +111,9 @@ impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Add<Self> for Point<T
 }
 
 use std::ops::Sub;
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd> Sub<Self> for Point<T> {
+impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Sub<Self>
+    for Point<T>
+{
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {

@@ -26,9 +26,10 @@ pub fn font_width(scale: Scale) -> f32 {
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub enum Align {
     Start,
+    End,
     #[default]
     Center,
-    End,
+    CenterAt(f32),
 }
 
 use smithay_client_toolkit::shm::slot::Buffer;

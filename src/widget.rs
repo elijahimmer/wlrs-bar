@@ -7,8 +7,27 @@ pub trait Widget {
     fn area(&self) -> Rect<f32>;
     fn desired_height(&self) -> f32;
     fn desired_width(&self, height: f32) -> f32;
+
     fn resize(&mut self, rect: Rect<f32>);
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()>;
+}
+
+pub trait PositionedWidget {
+    fn h_align(&self) -> Align;
+    fn v_align(&self) -> Align;
+
+    fn top_margin(&self) -> f32;
+    fn bottom_margin(&self) -> f32;
+    fn left_margin(&self) -> f32;
+    fn right_margin(&self) -> f32;
+
+    fn v_margins(&self) -> f32 {
+        self.top_margin() + self.bottom_margin()
+    }
+
+    fn h_margins(&self) -> f32 {
+        self.left_margin() + self.right_margin()
+    }
 }
 
 // places widgets from the center propagating out,
@@ -64,4 +83,14 @@ pub fn center_widgets(widgets: &mut [&mut dyn Widget], area: Rect<f32>) {
             right.min.x += rect.width();
         }
     });
+}
+
+#[macro_export]
+macro_rules! builder_fields {
+    ($($t: ty, $($n: ident)+),+) => ($($(
+        pub fn $n(mut self, $n: $t) -> Self {
+            self.$n = $n;
+            self
+        }
+    )*)*)
 }
