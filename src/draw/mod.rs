@@ -4,7 +4,7 @@ pub mod text_box;
 
 pub use point::*;
 pub use rect::*;
-pub use text_box::TextBox;
+pub use text_box::{TextBox, TextBoxBuilder};
 
 use crate::color::Color;
 

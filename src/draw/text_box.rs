@@ -11,7 +11,7 @@ pub struct TextBox<'glyphs> {
 
     text: String,
     text_first_diff: usize,
-    name: String,
+    name: Box<str>,
     pub fg: Color,
     pub bg: Color,
 
@@ -28,6 +28,7 @@ pub struct TextBox<'glyphs> {
 
     area: Rect<f32>,
     desired_text_height: f32,
+    desired_width: Option<f32>,
 
     redraw: bool,
     rerender_text: bool,
@@ -51,7 +52,7 @@ fn render_glyphs<'a>(
 }
 
 impl<'a> TextBox<'a> {
-    pub fn set_text(&mut self, new_text: String) {
+    pub fn set_text(&mut self, new_text: &str) {
         for (idx, (new, old)) in self.text.chars().zip(new_text.chars()).enumerate() {
             if new != old {
                 self.text_first_diff = idx;
@@ -72,11 +73,17 @@ impl<'a> TextBox<'a> {
 }
 
 impl Widget for TextBox<'_> {
-    fn name(&self) -> &String {
+    fn name(&self) -> &str {
         &self.name
     }
     fn area(&self) -> Rect<f32> {
         self.area
+    }
+    fn h_align(&self) -> Align {
+        self.h_align
+    }
+    fn v_align(&self) -> Align {
+        self.v_align
     }
 
     fn desired_height(&self) -> f32 {
@@ -84,6 +91,10 @@ impl Widget for TextBox<'_> {
     }
 
     fn desired_width(&self, height: f32) -> f32 {
+        if let Some(desired_width) = self.desired_width {
+            return desired_width;
+        }
+
         if self.text.is_empty() || height <= 0.0 {
             log::debug!("'{}', desired_width, nothing to display", self.name);
             return 0.0;
@@ -101,7 +112,8 @@ impl Widget for TextBox<'_> {
         self.redraw = true;
         self.rerender_text = false;
 
-        let width_max = (rect.width() - self.h_margins()).max(0.0);
+        let width_max = (rect.width() - self.h_margins())
+            .clamp(0.0, self.desired_width.unwrap_or(f32::INFINITY));
         let height_used = (rect.height() - self.v_margins()).clamp(0.0, self.desired_text_height);
 
         if width_max <= 0.0 || height_used == 0.0 {
@@ -115,7 +127,7 @@ impl Widget for TextBox<'_> {
         let (glyphs, width_used) = render_glyphs(self.font, &self.text, self.scale);
 
         if width_used <= width_max {
-            log::trace!("'{}', resize, using desired scale", self.name);
+            log::debug!("'{}', resize, using desired scale", self.name);
             self.glyphs_size = Point::new(width_used, height_used);
             self.glyphs = Some(glyphs);
         } else {
@@ -124,7 +136,7 @@ impl Widget for TextBox<'_> {
 
             let height_used_new = (height_used * ratio).floor();
             let scale_new = Scale::uniform(height_used_new);
-            log::trace!(
+            log::debug!(
                 "'{}', scale down by {ratio} from {:?} to {:?}",
                 self.name,
                 self.scale,
@@ -160,15 +172,16 @@ impl Widget for TextBox<'_> {
         let area_used = area.place_at(self.glyphs_size.into(), self.h_align, self.v_align);
 
         if self.rerender_text {
-            //log::trace!("'{}', draw, re-rendering glyphs", self.name);
+            log::trace!("'{}', draw, re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             self.glyphs = Some(glyphs);
             self.glyphs_size = Point::new(width, area_used.height() as f32);
-        } else {
-            //log::trace!("'{}', draw, redrawing fully", self.name);
+        }
+        if redraw_full {
+            log::trace!("'{}', draw, redrawing fully", self.name);
             area.draw(self.bg, ctx);
-            //area.draw_outline(self.fg, ctx);
-            //area_used.draw_outline(self.fg, ctx);
+            area.draw_outline(self.fg, ctx);
+            area_used.draw_outline(self.fg, ctx);
         }
 
         let mut bb_last = area_used;
@@ -180,13 +193,13 @@ impl Widget for TextBox<'_> {
                 #[cfg(debug_assertions)]
                 {
                     let glyph_width = gly.unpositioned().h_metrics().advance_width.round();
-                    //log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
-                    assert!(glyph_width >= bb.width() as f32);
+                    log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
+                    assert!(glyph_width as u32 >= bb.width());
                 }
 
                 if idx == self.text_first_diff && !redraw_full {
                     bb_last.max.x = area_used.max.x;
-                    //log::trace!("'{}', draw, filling back, {idx}", self.name);
+                    log::trace!("'{}', draw, filling back, {idx}", self.name);
                     bb_last.draw(self.bg, ctx);
                 }
                 bb.min.y += area_used.min.y;
@@ -194,7 +207,7 @@ impl Widget for TextBox<'_> {
                 bb.min.x += area_used.min.x;
                 bb.max.x += area_used.min.x;
 
-                //log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
+                log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
                 debug_assert!(area_used.contains_rect(bb));
 
                 ctx.damage.push(bb);
@@ -233,12 +246,6 @@ impl PositionedWidget for TextBox<'_> {
     fn right_margin(&self) -> f32 {
         self.right_margin
     }
-    fn h_align(&self) -> Align {
-        self.h_align
-    }
-    fn v_align(&self) -> Align {
-        self.v_align
-    }
 }
 
 #[derive(Clone)]
@@ -248,6 +255,7 @@ pub struct TextBoxBuilder<'glyphs> {
     fg: Color,
     bg: Color,
     desired_text_height: f32,
+    desired_width: Option<f32>,
 
     top_margin: f32,
     bottom_margin: f32,
@@ -265,6 +273,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             fg: *color::LOVE,
             bg: *color::SURFACE,
             desired_text_height: f32::INFINITY,
+            desired_width: None,
 
             top_margin: Default::default(),
             bottom_margin: Default::default(),
@@ -283,6 +292,11 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         Align, v_align h_align
     }
 
+    pub fn desired_width(mut self, width: f32) -> Self {
+        self.desired_width = Some(width);
+        self
+    }
+
     pub fn h_margins(mut self, margin: f32) -> Self {
         self.left_margin = margin / 2.0;
         self.right_margin = margin / 2.0;
@@ -295,13 +309,14 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         self
     }
 
-    pub fn build(self, name: String) -> TextBox<'glyphs> {
+    pub fn build(&self, name: Box<str>) -> TextBox<'glyphs> {
         TextBox {
             font: self.font,
-            text: self.text,
+            text: self.text.to_owned(),
             fg: self.fg,
             bg: self.bg,
             desired_text_height: self.desired_text_height,
+            desired_width: self.desired_width,
             name,
 
             top_margin: self.top_margin,

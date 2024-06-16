@@ -82,7 +82,14 @@ impl App {
         //    .desired_height(HEIGHT as f32)
         //    .build();
 
-        let clock = crate::clock::Clock::new("clock".to_string(), HEIGHT as f32);
+        let clock =
+            crate::clock::Clock::new("Clock".into(), HEIGHT as f32, Align::Center, Align::Center);
+        let workspaces = crate::workspaces::Workspaces::new(
+            "Workspaces".into(),
+            HEIGHT as f32,
+            Align::Start,
+            Align::Center,
+        );
 
         let mut me = Self {
             connection,
@@ -90,7 +97,7 @@ impl App {
             layer_shell,
             layer_surface,
             pointer: None,
-            widgets: vec![Box::new(clock)],
+            widgets: vec![Box::new(clock), Box::new(workspaces)],
 
             shm_state,
             pool,
@@ -210,9 +217,11 @@ impl LayerShellHandler for App {
             let wid_width = w.desired_width(wid_height).clamp(0.0, width);
 
             let size = Point::new(wid_width, wid_height);
+            log::trace!("'{}', size, size: {size:?}", w.name());
 
-            let new_area = canvas.place_at(size, Align::Center, Align::Center);
-            w.resize(new_area);
+            let area = canvas.place_at(size, w.h_align(), w.v_align());
+            log::trace!("'{}', resize, area: {area:?}", w.name());
+            w.resize(area);
         }
 
         self.draw(qh);
@@ -381,9 +390,10 @@ impl App {
         self.layer_surface.commit();
 
         // hack to test all sizes above your own (until it hits some limit)
-        //self.layer_surface.set_size(WIDTH, self.height + 1);
+        //log::info!("height: {}", self.height);
+        //self.layer_surface.set_size(WIDTH, self.height - 1);
         //self.layer_surface
-        //    .set_exclusive_zone(self.height as i32 + 1);
+        //    .set_exclusive_zone(self.height as i32 - 1);
         //self.layer_surface.commit();
     }
 

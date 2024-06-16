@@ -3,8 +3,10 @@ use anyhow::Result;
 use crate::draw::{Align, DrawCtx, Point, Rect};
 
 pub trait Widget {
-    fn name(&self) -> &String;
+    fn name(&self) -> &str;
     fn area(&self) -> Rect<f32>;
+    fn h_align(&self) -> Align;
+    fn v_align(&self) -> Align;
     fn desired_height(&self) -> f32;
     fn desired_width(&self, height: f32) -> f32;
 
@@ -13,9 +15,6 @@ pub trait Widget {
 }
 
 pub trait PositionedWidget {
-    fn h_align(&self) -> Align;
-    fn v_align(&self) -> Align;
-
     fn top_margin(&self) -> f32;
     fn bottom_margin(&self) -> f32;
     fn left_margin(&self) -> f32;
@@ -34,7 +33,7 @@ pub trait PositionedWidget {
 // scaling all down by the same ratio if needed.
 // the widgets are places the center first, then left and right.
 // if there is a even amount, 2 are placed with edges on the center line.
-pub fn center_widgets(widgets: &mut [&mut dyn Widget], area: Rect<f32>) {
+pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect<f32>) {
     let (width_max, height_max) = (area.width(), area.height());
     let mut widths: Vec<_> = widgets
         .iter()

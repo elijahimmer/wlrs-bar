@@ -10,6 +10,15 @@ pub struct Rect<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt
     pub max: Point<T>,
 }
 
+//pub fn round<T>(val: T) -> T 
+//where
+//    T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug,
+//{
+//    let float = T::to_f64(&val).unwrap();
+//
+//    T::from_f64(float.round()).unwrap()
+//}
+
 impl<T> Rect<T>
 where
     T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug,
