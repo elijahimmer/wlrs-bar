@@ -10,7 +10,7 @@ pub struct Rect<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt
     pub max: Point<T>,
 }
 
-//pub fn round<T>(val: T) -> T 
+//pub fn round<T>(val: T) -> T
 //where
 //    T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug,
 //{
@@ -36,60 +36,55 @@ where
     }
 
     pub fn place_at(self, size: Point<T>, h_align: Align, v_align: Align) -> Self {
+        //log::trace!("place_at: {self:?}");
         debug_assert!(self.max.x >= self.min.x + size.x);
         debug_assert!(self.max.y >= self.min.y + size.y);
 
-        let center_x = (self.min.x + self.max.x) / T::from_u32(2).unwrap();
-        let (min_x, max_x) = match h_align {
-            Align::Start => (self.min.x, self.min.x + size.x),
-            Align::End => (self.max.x - size.x, self.max.x),
-            Align::Center => (
-                center_x - size.x / T::from_u32(2).unwrap(),
-                center_x + size.x / T::from_u32(2).unwrap(),
-            ),
-            Align::CenterAt(ratio) => (
-                T::from_f32(
-                    T::to_f32(&center_x).unwrap() - (T::to_f32(&size.x).unwrap() * (1.0 - ratio)),
-                )
-                .unwrap(),
-                T::from_f32(T::to_f32(&center_x).unwrap() + (T::to_f32(&size.x).unwrap() * ratio))
-                    .unwrap(),
-            ),
-        };
-        //log::trace!("self: {self:?}");
-        //log::trace!("min_x: {min_x:?}, max_x: {max_x:?}");
-        debug_assert!(min_x <= max_x);
+        let x: f32 = T::to_f32(&size.x).unwrap();
+        let y: f32 = T::to_f32(&size.y).unwrap();
+        let x_min = T::to_f32(&self.min.x).unwrap();
+        let x_max = T::to_f32(&self.max.x).unwrap();
+        let y_min = T::to_f32(&self.min.y).unwrap();
+        let y_max = T::to_f32(&self.max.y).unwrap();
 
-        let center_y = (self.min.y + self.max.y) / T::from_u32(2).unwrap();
-        let (min_y, max_y) = match v_align {
-            Align::Start => (self.min.y, self.min.y + size.y),
-            Align::End => (self.max.y - size.y, self.max.y),
-            Align::Center => (
-                center_y - size.y / T::from_u32(2).unwrap(),
-                center_y + size.y / T::from_u32(2).unwrap(),
-            ),
-            Align::CenterAt(ratio) => (
-                T::from_f32(
-                    T::to_f32(&center_y).unwrap() - (T::to_f32(&size.y).unwrap() * (1.0 - ratio)),
-                )
-                .unwrap(),
-                T::from_f32(T::to_f32(&center_y).unwrap() + (T::to_f32(&size.y).unwrap() * ratio))
-                    .unwrap(),
-            ),
+        let center_x = (x_min + x_max) / 2.0;
+        //log::trace!("center_x: {center_x}");
+        let (x_min_new, x_max_new) = match h_align {
+            Align::Start => (x_min, x_min + x),
+            Align::End => (x_max - x, x_max),
+            Align::Center => (center_x - (x / 2.0), center_x + (x / 2.0)),
+            Align::CenterAt(ratio) => (center_x - (x * (1.0 - ratio)), center_x + (x * ratio)),
         };
-        //log::trace!("min_y: {min_y:?}, max_y: {max_y:?}");
-        debug_assert!(min_y <= max_y);
+        //log::trace!("x new: {x_min_new} x {x_max_new}");
+        debug_assert!(x_min_new <= x_max_new);
+        debug_assert!(x_max_new - x_min_new == x);
 
-        let min = Point::new(min_x, min_y);
-        let max = Point::new(max_x, max_y);
+        let center_y = (y_min + y_max) / 2.0;
+        //log::trace!("center_y: {center_y}");
+        let (y_min_new, y_max_new) = match v_align {
+            Align::Start => (y_min, y_min + x),
+            Align::End => (y_max - y, y_max),
+            Align::Center => (center_y - (y / 2.0), center_y + (y / 2.0)),
+            Align::CenterAt(ratio) => (center_y - (y * (1.0 - ratio)), center_y + (y * ratio)),
+        };
+        //log::trace!("y new: {y_min_new} x {y_max_new}");
+        debug_assert!(y_min_new <= y_max_new);
+        debug_assert!(y_max_new - y_min_new == y);
+
+        let x_min = T::from_f32(x_min_new).unwrap();
+        let y_min = T::from_f32(y_min_new).unwrap();
+        let x_max = T::from_f32(x_max_new).unwrap();
+        let y_max = T::from_f32(y_max_new).unwrap();
+
+        let min = Point::new(x_min, y_min);
+        let max = Point::new(x_max, y_max);
 
         debug_assert!(self.contains(min));
         debug_assert!(self.contains(max));
 
-        Self {
-            min: Point { x: min_x, y: min_y },
-            max: Point { x: max_x, y: max_y },
-        }
+        //log::trace!("min: {min:?}, max: {max:?}");
+
+        Self { min, max }
     }
 
     pub fn width(self) -> T {
@@ -106,8 +101,8 @@ where
 
     pub fn center(self) -> Point<T> {
         Point {
-            x: (self.min.x + self.max.x) / T::from_u32(2).unwrap(),
-            y: (self.min.y + self.max.y) / T::from_u32(2).unwrap(),
+            x: (self.min.x + self.max.x) / T::from_u8(2).unwrap(),
+            y: (self.min.y + self.max.y) / T::from_u8(2).unwrap(),
         }
     }
 

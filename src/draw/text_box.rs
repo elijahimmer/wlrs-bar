@@ -116,7 +116,7 @@ impl Widget for TextBox<'_> {
             .clamp(0.0, self.desired_width.unwrap_or(f32::INFINITY));
         let height_used = (rect.height() - self.v_margins()).clamp(0.0, self.desired_text_height);
 
-        if width_max <= 0.0 || height_used == 0.0 {
+        if width_max <= 0.0 || height_used <= 0.0 {
             self.glyphs_size = Point::new(0.0, 0.0);
             self.glyphs = None;
             return;
@@ -161,7 +161,7 @@ impl Widget for TextBox<'_> {
 
         let redraw_full = ctx.full_redraw || self.redraw;
 
-        if !redraw_full && !self.rerender_text {
+        if !redraw_full && !self.rerender_text || self.text.is_empty() {
             return Ok(());
         }
 
@@ -169,10 +169,18 @@ impl Widget for TextBox<'_> {
         assert!(self.glyphs.is_some());
         assert!(self.area.size() >= self.glyphs_size);
 
-        let area_used = area.place_at(self.glyphs_size.into(), self.h_align, self.v_align);
+        let glyphs_size: Point<u32> = self.glyphs_size.into();
+        let area_used = area.place_at(glyphs_size, self.h_align, self.v_align);
+        //log::trace!(
+        //    "'{}', glyph_size: {:?}, area_size: {:?}",
+        //    self.name,
+        //    glyphs_size,
+        //    area_used.size()
+        //);
+        assert!(area_used.size() >= glyphs_size);
 
         if self.rerender_text {
-            log::trace!("'{}', draw, re-rendering glyphs", self.name);
+            //log::trace!("'{}', draw, re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             self.glyphs = Some(glyphs);
             self.glyphs_size = Point::new(width, area_used.height() as f32);
@@ -180,8 +188,8 @@ impl Widget for TextBox<'_> {
         if redraw_full {
             log::trace!("'{}', draw, redrawing fully", self.name);
             area.draw(self.bg, ctx);
-            area.draw_outline(self.fg, ctx);
-            area_used.draw_outline(self.fg, ctx);
+            //area.draw_outline(self.fg, ctx);
+            //area_used.draw_outline(self.fg, ctx);
         }
 
         let mut bb_last = area_used;
@@ -193,13 +201,13 @@ impl Widget for TextBox<'_> {
                 #[cfg(debug_assertions)]
                 {
                     let glyph_width = gly.unpositioned().h_metrics().advance_width.round();
-                    log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
+                    //log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
                     assert!(glyph_width as u32 >= bb.width());
                 }
 
                 if idx == self.text_first_diff && !redraw_full {
                     bb_last.max.x = area_used.max.x;
-                    log::trace!("'{}', draw, filling back, {idx}", self.name);
+                    //log::trace!("'{}', draw, filling back, {idx}", self.name);
                     bb_last.draw(self.bg, ctx);
                 }
                 bb.min.y += area_used.min.y;
@@ -207,7 +215,7 @@ impl Widget for TextBox<'_> {
                 bb.min.x += area_used.min.x;
                 bb.max.x += area_used.min.x;
 
-                log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
+                //log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
                 debug_assert!(area_used.contains_rect(bb));
 
                 ctx.damage.push(bb);

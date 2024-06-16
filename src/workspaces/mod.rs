@@ -27,19 +27,9 @@ impl Workspaces<'_> {
         log::info!("'{name}' initializing with height: {desired_height}");
 
         let workspace_builder = TextBox::builder()
-            .text("A".to_string())
             .fg(*color::ROSE)
-            .desired_text_height(desired_height)
-            .desired_width(desired_height);
-
-        let a = workspace_builder
-            .clone()
-            .bg(*color::PINE)
-            .build((name.to_string() + " A").into());
-        let b = workspace_builder
-            .clone()
-            .text("B".to_string())
-            .build((name.to_string() + " B").into());
+            .desired_width(desired_height)
+            .desired_text_height(desired_height);
 
         Workspaces {
             name,
@@ -48,7 +38,7 @@ impl Workspaces<'_> {
             desired_height,
             workspace_builder,
 
-            workspaces: vec![a, b],
+            workspaces: Default::default(),
             area: Default::default(),
         }
     }
@@ -97,5 +87,28 @@ impl Widget for Workspaces<'_> {
             }
         });
         Ok(())
+    }
+}
+
+const ALPHA_CHAR: u32 = 'Α' as u32 - 1;
+
+pub fn map_workspace(workspace: u32) -> String {
+    match workspace {
+        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i) {
+            Some(ch) => ch.to_string(),
+            None => {
+                log::warn!("Failed to map workspace to symbol: i={i}");
+                format!("{}", i)
+            }
+        },
+        // I needed to split this because there is a reserved character between rho and sigma.
+        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i) {
+            Some(ch) => ch.to_string(),
+            None => {
+                log::warn!("Failed to map workspace to symbol: i={i}");
+                format!("{}", i)
+            }
+        },
+        i => format!("{}", i),
     }
 }
