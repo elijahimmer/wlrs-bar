@@ -33,14 +33,16 @@ impl Clock<'_> {
         let time_builder = TextBox::builder()
             .text("00".to_string())
             .fg(*color::ROSE)
+            .bg(*color::SURFACE)
             .desired_text_height(desired_height);
 
         let spacer_builder = TextBox::builder()
             .text("".to_string())
+            .fg(*color::PINE)
+            .bg(*color::SURFACE)
             .desired_text_height(desired_height / 1.5)
             .h_margins(desired_height / 5.0)
-            .v_align(Align::CenterAt(0.45))
-            .fg(*color::PINE);
+            .v_align(Align::CenterAt(0.45));
 
         let __hours = time_builder.build((name.to_string() + "   hours").into());
         let minutes = time_builder.build((name.to_string() + " minutes").into());

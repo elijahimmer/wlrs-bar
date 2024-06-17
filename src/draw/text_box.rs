@@ -74,7 +74,7 @@ impl<'a> TextBox<'a> {
 
     pub fn set_bg(&mut self, bg: Color) {
         self.redraw = true;
-        self.fg = bg;
+        self.bg = bg;
     }
 
     pub fn builder() -> TextBoxBuilder<'a> {
@@ -175,7 +175,6 @@ impl Widget for TextBox<'_> {
             return Ok(());
         }
 
-        assert!(!self.text.is_empty());
         assert!(self.glyphs.is_some());
         assert!(self.area.size() >= self.glyphs_size);
 
@@ -209,13 +208,13 @@ impl Widget for TextBox<'_> {
                 #[cfg(debug_assertions)]
                 {
                     let glyph_width = gly.unpositioned().h_metrics().advance_width.round();
-                    //log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
+                    log::trace!("'{}', gly: {glyph_width}, bb: {}", self.name, bb.width());
                     assert!(glyph_width as u32 >= bb.width());
                 }
 
                 if idx == self.text_first_diff && !redraw_full {
                     bb_last.max.x = area_used.max.x;
-                    //log::trace!("'{}', draw, filling back, {idx}", self.name);
+                    log::trace!("'{}', draw, filling back, {idx}", self.name);
                     bb_last.draw(self.bg, ctx);
                 }
                 bb.min.y += area_used.min.y;
@@ -223,7 +222,7 @@ impl Widget for TextBox<'_> {
                 bb.min.x += area_used.min.x;
                 bb.max.x += area_used.min.x;
 
-                //log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
+                log::trace!("'{}', area: {area_used:?}, bb: {bb:?}", self.name);
                 debug_assert!(area_used.contains_rect(bb));
 
                 ctx.damage.push(bb);
@@ -243,7 +242,7 @@ impl Widget for TextBox<'_> {
             ctx.damage.push(area_used);
         }
 
-        //area.draw_outline(self.fg, ctx);
+        area.draw_outline(self.fg, ctx);
         //area_used.draw_outline(self.fg, ctx);
 
         self.text_first_diff = 0;
@@ -291,7 +290,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             font: &FONT,
             text: String::new(),
             fg: *color::LOVE,
-            bg: *color::SURFACE,
+            bg: *color::LOVE,
             desired_text_height: f32::INFINITY,
             desired_width: None,
 
@@ -350,8 +349,8 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             area: Default::default(),
             glyphs: None,
             glyphs_size: Default::default(),
-            redraw: false,
-            rerender_text: false,
+            redraw: true,
+            rerender_text: true,
             text_first_diff: Default::default(),
         }
     }

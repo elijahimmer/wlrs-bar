@@ -1,5 +1,6 @@
-use crate::draw::{Align, Point, Rect};
-use crate::widget::Widget;
+use super::color;
+use super::draw::{Align, Point, Rect};
+use super::widget::Widget;
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -223,6 +224,7 @@ impl LayerShellHandler for App {
 
         for w in self.widgets.iter_mut() {
             let wid_height = w.desired_height().clamp(0.0, height);
+            assert_eq!(wid_height, height);
             let wid_width = w.desired_width(wid_height).clamp(0.0, width);
 
             let size = Point::new(wid_width, wid_height);
@@ -353,7 +355,7 @@ impl App {
         };
 
         //for dam in self.last_damage.iter() {
-        //    dam.draw_outline(*crate::color::SURFACE, &mut ctx);
+        //    dam.draw_outline(*color::SURFACE, &mut ctx);
         //    dam.damage_outline(surface.clone());
         //}
         //debug_assert!(ctx.damage.is_empty());
@@ -362,14 +364,15 @@ impl App {
         ctx.damage = &mut self.last_damage;
 
         if self.redraw {
-            rect.draw(*crate::color::SURFACE, &mut ctx);
-            //rect.draw_outline(*crate::color::PINE, &mut ctx);
+            rect.draw(*color::SURFACE, &mut ctx);
+            //rect.draw_outline(*color::PINE, &mut ctx);
         }
 
         for w in self.widgets.iter_mut() {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("widget failed to draw: error={err}");
             }
+            w.area().draw_outline(*color::PINE, &mut ctx);
         }
 
         if self.redraw {
@@ -389,7 +392,7 @@ impl App {
                     dam.max.y as i32,
                 );
 
-                //dam.draw_outline(*crate::color::LOVE, &mut ctx);
+                //dam.draw_outline(*color::LOVE, &mut ctx);
             }
         }
 

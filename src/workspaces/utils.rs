@@ -8,15 +8,28 @@ pub const EVENT_SOCKET: &str = ".socket2.sock";
 
 pub type WorkspaceID = i32;
 
+#[derive(Debug)]
 pub enum HyprSocket {
     Command,
     Event,
 }
 
+#[derive(Debug)]
 pub enum Command {
     MoveToWorkspace(WorkspaceID),
     ActiveWorkspace,
     Workspaces,
+}
+
+use std::fmt::{Display, Error as FmtError, Formatter};
+impl Display for Command {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        match self {
+            Command::MoveToWorkspace(wid) => write!(f, "dispatch workspace {wid}"),
+            Command::ActiveWorkspace => write!(f, "activeworkspace"),
+            Command::Workspaces => write!(f, "workspaces"),
+        }
+    }
 }
 
 pub fn open_hypr_socket(socket: HyprSocket) -> Result<UnixStream> {
@@ -31,17 +44,6 @@ pub fn open_hypr_socket(socket: HyprSocket) -> Result<UnixStream> {
     Ok(UnixStream::connect(format!(
         "{xdg_dir}/hypr/{his}/{socket_file}"
     ))?)
-}
-
-use std::fmt::{Display, Error as FmtError, Formatter};
-impl Display for Command {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        match self {
-            Command::MoveToWorkspace(wid) => write!(f, "dispatch workspace {wid}"),
-            Command::ActiveWorkspace => write!(f, "activeworkspace"),
-            Command::Workspaces => write!(f, "workspaces"),
-        }
-    }
 }
 
 pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
@@ -90,9 +92,9 @@ fn get_workspace_id(line: &str) -> Result<WorkspaceID> {
 
 const ALPHA_CHAR: u32 = 'Α' as u32 - 1;
 
-pub fn map_workspace(workspace: u32) -> String {
-    match workspace {
-        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i) {
+pub fn map_workspace_id(id: WorkspaceID) -> String {
+    match id {
+        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i as u32) {
             Some(ch) => ch.to_string(),
             None => {
                 log::warn!("Failed to map workspace to symbol: i={i}");
@@ -100,7 +102,7 @@ pub fn map_workspace(workspace: u32) -> String {
             }
         },
         // I needed to split this because there is a reserved character between rho and sigma.
-        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i) {
+        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i as u32) {
             Some(ch) => ch.to_string(),
             None => {
                 log::warn!("Failed to map workspace to symbol: i={i}");

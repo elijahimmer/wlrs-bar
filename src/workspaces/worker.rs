@@ -1,15 +1,17 @@
 use super::utils::*;
 use anyhow::Result;
 use std::io::Read;
-use std::os::unix::net::UnixStream;
-use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
+#[derive(Debug)]
 pub enum WorkerMsg {
     WorkspaceSetActive(WorkspaceID),
     WorkspaceCreate(WorkspaceID),
     WorkspaceDestroy(WorkspaceID),
+    WorkspaceReset,
 }
 
+#[derive(Debug)]
 pub enum ManagerMsg {
     Close,
 }
@@ -19,6 +21,13 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
     //socket.set_nonblocking(true)?;
 
     std::thread::sleep(std::time::Duration::from_secs(1));
+
+    send.send(WorkerMsg::WorkspaceReset)?;
+    get_workspaces()?
+        .into_iter()
+        .try_for_each(|w| send.send(WorkerMsg::WorkspaceCreate(w)))?;
+
+    send.send(WorkerMsg::WorkspaceSetActive(get_active_workspace()?))?;
 
     let mut buf = [0u8; 4096];
 
