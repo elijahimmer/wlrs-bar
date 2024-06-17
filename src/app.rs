@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 30;
+pub const HEIGHT: u32 = 28;
 
 pub struct App {
     pub connection: Connection,
@@ -81,23 +81,32 @@ impl App {
         //    .text("this is a test box".to_string())
         //    .desired_height(HEIGHT as f32)
         //    .build();
+        let mut widgets: Vec<Box<dyn Widget>> = vec![];
 
-        let clock =
-            crate::clock::Clock::new("Clock".into(), HEIGHT as f32, Align::Center, Align::Center);
-        let workspaces = crate::workspaces::Workspaces::new(
+        widgets.push(Box::new(crate::clock::Clock::new(
+            "Clock".into(),
+            HEIGHT as f32,
+            Align::Center,
+            Align::Center,
+        )));
+
+        match crate::workspaces::Workspaces::new(
             "Workspaces".into(),
             HEIGHT as f32,
             Align::Start,
             Align::Center,
-        );
+        ) {
+            Ok(w) => widgets.push(Box::new(w)),
+            Err(err) => log::warn!("Workspaces failed to initialize. error={err}"),
+        };
 
         let mut me = Self {
             connection,
             compositor,
             layer_shell,
             layer_surface,
+            widgets,
             pointer: None,
-            widgets: vec![Box::new(clock), Box::new(workspaces)],
 
             shm_state,
             pool,

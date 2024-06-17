@@ -3,8 +3,11 @@ pub mod utils;
 use crate::color;
 use crate::draw::*;
 use crate::widget::*;
+use utils::*;
 
 use anyhow::Result;
+use std::io::Read;
+use std::os::unix::net::UnixStream;
 
 pub struct Workspaces<'a> {
     name: Box<str>,
@@ -13,8 +16,11 @@ pub struct Workspaces<'a> {
     h_align: Align,
     v_align: Align,
 
+    socket: UnixStream,
+
     workspace_builder: TextBoxBuilder<'a>,
-    workspaces: Vec<TextBox<'a>>,
+    workspaces: Vec<(usize, TextBox<'a>)>,
+    active_workspace: usize,
 }
 
 impl Workspaces<'_> {
@@ -23,7 +29,7 @@ impl Workspaces<'_> {
         desired_height: f32,
         h_align: Align,
         v_align: Align,
-    ) -> Workspaces<'a> {
+    ) -> Result<Workspaces<'a>> {
         log::info!("'{name}' initializing with height: {desired_height}");
 
         let workspace_builder = TextBox::builder()
@@ -31,16 +37,22 @@ impl Workspaces<'_> {
             .desired_width(desired_height)
             .desired_text_height(desired_height);
 
-        Workspaces {
+        Ok(Workspaces {
             name,
             h_align,
             v_align,
             desired_height,
             workspace_builder,
+            socket: open_hypr_socket(HyprSocket::Event)?,
 
+            active_workspace: Default::default(),
             workspaces: Default::default(),
             area: Default::default(),
-        }
+        })
+    }
+
+    fn update_workspaces(&mut self) {
+        //self.socket.read();
     }
 }
 
@@ -63,13 +75,14 @@ impl Widget for Workspaces<'_> {
     fn desired_width(&self, height: f32) -> f32 {
         self.workspaces
             .iter()
-            .fold(0.0, |acc, w| acc + w.desired_width(height))
+            .map(|(_idx, w)| w.desired_width(height))
+            .sum()
     }
     fn resize(&mut self, area: Rect<f32>) {
         center_widgets(
             self.workspaces
                 .iter_mut()
-                .map(|w| &mut (*w))
+                .map(|(_idx, w)| &mut (*w))
                 .collect::<Vec<_>>()
                 .as_mut_slice(),
             area,
@@ -77,7 +90,7 @@ impl Widget for Workspaces<'_> {
         self.area = area;
     }
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        self.workspaces.iter_mut().for_each(|w| {
+        self.workspaces.iter_mut().for_each(|(_idx, w)| {
             if let Err(err) = w.draw(ctx) {
                 log::warn!(
                     "'{}', widget '{}' failed to draw. error={err}",
@@ -87,28 +100,5 @@ impl Widget for Workspaces<'_> {
             }
         });
         Ok(())
-    }
-}
-
-const ALPHA_CHAR: u32 = 'Α' as u32 - 1;
-
-pub fn map_workspace(workspace: u32) -> String {
-    match workspace {
-        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i) {
-            Some(ch) => ch.to_string(),
-            None => {
-                log::warn!("Failed to map workspace to symbol: i={i}");
-                format!("{}", i)
-            }
-        },
-        // I needed to split this because there is a reserved character between rho and sigma.
-        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i) {
-            Some(ch) => ch.to_string(),
-            None => {
-                log::warn!("Failed to map workspace to symbol: i={i}");
-                format!("{}", i)
-            }
-        },
-        i => format!("{}", i),
     }
 }

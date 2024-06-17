@@ -55,7 +55,7 @@ pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
     let res = res.trim();
 
     if res == "unknown request" {
-        Err(anyhow!("Invaid Hyprland Command! '{command}'"))
+        Err(anyhow!("Invaid Hyprland command '{command}'"))
     } else {
         Ok(res.into())
     }
@@ -63,70 +63,50 @@ pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
 
 const WKSP_CMD_START: &str = "workspace ID ";
 const WKSP_CMD_LEN: usize = WKSP_CMD_START.len();
-pub fn get_active_workspace() -> Result<WorkspaceID> {
-    let res = &send_hypr_command(Command::ActiveWorkspace)?[WKSP_CMD_LEN..];
 
-    match res.find(' ') {
-        Some(pos) => Ok(res[..pos].parse()?),
-        None => Err(anyhow!("Failed to parse Hyprctl Response")),
-    }
+pub fn get_active_workspace() -> Result<WorkspaceID> {
+    send_hypr_command(Command::ActiveWorkspace).and_then(|l| get_workspace_id(&l))
 }
 
 pub fn get_workspaces() -> Result<Vec<WorkspaceID>> {
-    let res = send_hypr_command(Command::Workspaces)?;
-    assert!(res.len() > WKSP_CMD_LEN);
-
-    res
+    send_hypr_command(Command::Workspaces)?
         .lines()
         .filter(|l| l.starts_with(WKSP_CMD_START))
-        .
+        .map(get_workspace_id)
+        .collect::<Result<Vec<_>>>()
+        .map(|mut v| {
+            v.sort();
+            v
+        })
 }
 
-//pub fn jumpstart_workspaces() -> Result<Vec<Workspace>> {
-//    let res = send_hypr_command_read("workspaces")?;
-//
-//    let mut vec = vec![];
-//    for line in res.lines() {
-//        if line.starts_with(CMD_LINE_START) {
-//            let pos = line[CMD_LINE_LEN..]
-//                .find(' ')
-//                .ok_or(anyhow!("Failed to parse Hyprland response."))?;
-//
-//            vec.push(create_workspace(
-//                line[CMD_LINE_LEN..(CMD_LINE_LEN + pos)].parse()?,
-//            ));
-//        }
-//    }
-//
-//    vec.sort_unstable_by_key(|e| e.0);
-//
-//    Ok(vec)
-//}
-//
-//pub fn jumpstart_active_workspace() -> Result<i32> {
-//    let res = send_hypr_command_read("activeworkspace")?;
-//
-//    let pos = match res[CMD_LINE_LEN..].find(' ') {
-//        Some(p) => p,
-//        None => {
-//            return Err(anyhow!("Failed to parse Hyprctl Response"));
-//        }
-//    };
-//    Ok(res[CMD_LINE_LEN..(CMD_LINE_LEN + pos)].parse()?)
-//}
+fn get_workspace_id(line: &str) -> Result<WorkspaceID> {
+    assert!(line.starts_with(WKSP_CMD_START));
+    line[WKSP_CMD_LEN..]
+        .find(' ')
+        .ok_or(anyhow!("Invalid Workspace Response '{line}'"))
+        .and_then(|idx| Ok(line[WKSP_CMD_LEN..][..idx].parse()?))
+}
 
-//pub fn send_hypr_command(command: HyprCommand) -> Result<()> {
-//    let mut socket = open_hypr_socket(HyprSocket::Command)?;
-//    command.write_to(&mut socket)?;
-//    socket.flush()?;
-//
-//    let mut buf = [0; 16];
-//
-//    let size = socket.read(&mut buf)?;
-//
-//    if buf[..size] == *b"unknown request" {
-//        Err(anyhow!("Invaid Hyprland Command!"))
-//    } else {
-//        Ok(())
-//    }
-//}
+const ALPHA_CHAR: u32 = 'Α' as u32 - 1;
+
+pub fn map_workspace(workspace: u32) -> String {
+    match workspace {
+        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i) {
+            Some(ch) => ch.to_string(),
+            None => {
+                log::warn!("Failed to map workspace to symbol: i={i}");
+                format!("{}", i)
+            }
+        },
+        // I needed to split this because there is a reserved character between rho and sigma.
+        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i) {
+            Some(ch) => ch.to_string(),
+            None => {
+                log::warn!("Failed to map workspace to symbol: i={i}");
+                format!("{}", i)
+            }
+        },
+        i => format!("{}", i),
+    }
+}

@@ -10,11 +10,11 @@ pub mod workspaces;
 pub fn main() {
     env_logger::init();
 
-    use workspaces::utils::*;
+    //use workspaces::utils::*;
 
-    println!("{}", get_active_workspace().unwrap());
+    //println!("{:?}", get_workspaces().unwrap());
 
-    //let (mut app, mut event_queue) = app::App::new();
+    let (mut app, mut event_queue) = app::App::new();
 
-    //app.run_queue(&mut event_queue);
+    app.run_queue(&mut event_queue);
 }

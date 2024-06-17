@@ -57,7 +57,7 @@ where
         };
         //log::trace!("x new: {x_min_new} x {x_max_new}");
         debug_assert!(x_min_new <= x_max_new);
-        debug_assert!(x_max_new - x_min_new == x);
+        debug_assert!((x_max_new - x_min_new).round() == x.round());
 
         let center_y = (y_min + y_max) / 2.0;
         //log::trace!("center_y: {center_y}");

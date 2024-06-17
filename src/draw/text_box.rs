@@ -12,8 +12,8 @@ pub struct TextBox<'glyphs> {
     text: String,
     text_first_diff: usize,
     name: Box<str>,
-    pub fg: Color,
-    pub bg: Color,
+    fg: Color,
+    bg: Color,
 
     top_margin: f32,
     bottom_margin: f32,
@@ -65,6 +65,16 @@ impl<'a> TextBox<'a> {
         }
         self.rerender_text = self.text != new_text;
         self.text = new_text.to_string();
+    }
+
+    pub fn set_fg(&mut self, fg: Color) {
+        self.redraw = true;
+        self.fg = fg;
+    }
+
+    pub fn set_bg(&mut self, bg: Color) {
+        self.redraw = true;
+        self.fg = bg;
     }
 
     pub fn builder() -> TextBoxBuilder<'a> {
@@ -126,7 +136,7 @@ impl Widget for TextBox<'_> {
 
         let (glyphs, width_used) = render_glyphs(self.font, &self.text, self.scale);
 
-        if width_used <= width_max {
+        if width_used.round() <= width_max.round() {
             log::debug!("'{}', resize, using desired scale", self.name);
             self.glyphs_size = Point::new(width_used, height_used);
             self.glyphs = Some(glyphs);
@@ -145,7 +155,7 @@ impl Widget for TextBox<'_> {
             self.scale = scale_new;
             let (new_glyphs, width_used_new) = render_glyphs(self.font, &self.text, self.scale);
 
-            debug_assert!(width_used_new <= width_max);
+            debug_assert!(width_used_new.round() <= width_max.round());
 
             self.glyphs_size = Point::new(width_used_new, height_used_new);
             self.glyphs = Some(new_glyphs);
@@ -188,8 +198,6 @@ impl Widget for TextBox<'_> {
         if redraw_full {
             log::trace!("'{}', draw, redrawing fully", self.name);
             area.draw(self.bg, ctx);
-            //area.draw_outline(self.fg, ctx);
-            //area_used.draw_outline(self.fg, ctx);
         }
 
         let mut bb_last = area_used;
@@ -227,12 +235,16 @@ impl Widget for TextBox<'_> {
                     ctx.put(point, color);
                 });
                 bb_last.min.x = bb.max.x;
+                //bb.draw_outline(self.fg, ctx);
             }
         }
 
         if self.rerender_text {
             ctx.damage.push(area_used);
         }
+
+        //area.draw_outline(self.fg, ctx);
+        //area_used.draw_outline(self.fg, ctx);
 
         self.text_first_diff = 0;
         self.redraw = false;
