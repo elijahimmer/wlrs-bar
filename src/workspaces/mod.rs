@@ -1,13 +1,14 @@
 pub mod utils;
+pub mod worker;
 
 use crate::color;
 use crate::draw::*;
 use crate::widget::*;
 use utils::*;
 
-use anyhow::Result;
-use std::io::Read;
-use std::os::unix::net::UnixStream;
+use anyhow::{anyhow, Result};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread::JoinHandle;
 
 pub struct Workspaces<'a> {
     name: Box<str>,
@@ -16,7 +17,9 @@ pub struct Workspaces<'a> {
     h_align: Align,
     v_align: Align,
 
-    socket: UnixStream,
+    worker_handle: Option<JoinHandle<Result<()>>>,
+    worker_send: Sender<worker::ManagerMsg>,
+    worker_recv: Receiver<worker::WorkerMsg>,
 
     workspace_builder: TextBoxBuilder<'a>,
     workspaces: Vec<(usize, TextBox<'a>)>,
@@ -37,22 +40,84 @@ impl Workspaces<'_> {
             .desired_width(desired_height)
             .desired_text_height(desired_height);
 
+        let (worker_send, other_recv) = mpsc::channel::<worker::ManagerMsg>();
+        let (other_send, worker_recv) = mpsc::channel::<worker::WorkerMsg>();
+
+        let wrk_name = name.to_owned();
+        let worker_handle = Some(std::thread::spawn(move || {
+            worker::work(&wrk_name, other_recv, other_send)
+        }));
+
         Ok(Workspaces {
             name,
             h_align,
             v_align,
             desired_height,
             workspace_builder,
-            socket: open_hypr_socket(HyprSocket::Event)?,
+            worker_handle,
+            worker_send,
+            worker_recv,
 
-            active_workspace: Default::default(),
             workspaces: Default::default(),
+            active_workspace: Default::default(),
             area: Default::default(),
         })
     }
 
-    fn update_workspaces(&mut self) {
-        //self.socket.read();
+    fn update_workspaces(&mut self) -> Result<()> {
+        if self.worker_handle.is_none()
+            || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
+        {
+            let _ = self
+                .worker_handle
+                .take()
+                .map(|w| w.join())
+                .transpose()
+                .map_err(|err| {
+                    log::error!(
+                        "'{}', workspaces worker thread panicked. error={err:?}",
+                        self.name
+                    )
+                })
+                .map(|_| log::warn!("'{}', workspaces worker returned too soon", self.name));
+
+            let (worker_send, other_recv) = mpsc::channel::<worker::ManagerMsg>();
+            let (other_send, worker_recv) = mpsc::channel::<worker::WorkerMsg>();
+            self.worker_send = worker_send;
+            self.worker_recv = worker_recv;
+
+            let wrk_name = self.name.to_owned();
+            self.worker_handle = Some(std::thread::spawn(move || {
+                worker::work(&wrk_name, other_recv, other_send)
+            }));
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for Workspaces<'_> {
+    fn drop(&mut self) {
+        let _ = self
+            .worker_send
+            .send(worker::ManagerMsg::Close)
+            .map_err(|err| {
+                log::error!(
+                    "'{}', failed to send the thread a message. error={err}",
+                    self.name
+                )
+            });
+        let _ = self
+            .worker_handle
+            .take()
+            .map(|w| w.join())
+            .transpose()
+            .map_err(|err| {
+                log::error!(
+                    "'{}', workspaces worker thread panicked. error={err:?}",
+                    self.name
+                )
+            });
     }
 }
 
@@ -90,6 +155,8 @@ impl Widget for Workspaces<'_> {
         self.area = area;
     }
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+        self.update_workspaces()?;
+
         self.workspaces.iter_mut().for_each(|(_idx, w)| {
             if let Err(err) = w.draw(ctx) {
                 log::warn!(
