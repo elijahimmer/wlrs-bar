@@ -41,10 +41,10 @@ impl Workspaces<'_> {
     ) -> Result<Workspaces<'a>> {
         log::info!("'{name}' initializing with height: {desired_height}");
 
-        let fg = *color::ROSE;
-        let bg = *color::SURFACE;
-        let active_fg = *color::ROSE;
-        let active_bg = *color::PINE;
+        let fg = color::ROSE;
+        let bg = color::SURFACE;
+        let active_fg = color::ROSE;
+        let active_bg = color::PINE;
 
         let workspace_builder = TextBox::builder()
             .fg(fg)

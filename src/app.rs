@@ -87,8 +87,8 @@ impl App {
         //widgets.push(Box::new(
         //    crate::draw::TextBox::builder()
         //        .text("test".into())
-        //        .fg(*color::PINE)
-        //        .bg(*color::SURFACE)
+        //        .fg(color::PINE)
+        //        .bg(color::SURFACE)
         //        .build("test box".into()),
         //));
 
@@ -370,7 +370,7 @@ impl App {
         };
 
         //for dam in self.last_damage.iter() {
-        //    dam.draw_outline(*color::SURFACE, &mut ctx);
+        //    dam.draw_outline(color::SURFACE, &mut ctx);
         //    dam.damage_outline(surface.clone());
         //}
         //debug_assert!(ctx.damage.is_empty());
@@ -380,15 +380,15 @@ impl App {
 
         if self.redraw {
             log::debug!("draw :: full redraw");
-            rect.draw(*color::SURFACE, &mut ctx);
-            //rect.draw_outline(*color::PINE, &mut ctx);
+            rect.draw(color::SURFACE, &mut ctx);
+            //rect.draw_outline(color::PINE, &mut ctx);
         }
 
         for w in self.widgets.iter_mut() {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("draw :: widget failed to draw: error={err}");
             }
-            //w.area().draw_outline(*color::PINE, &mut ctx);
+            //w.area().draw_outline(color::PINE, &mut ctx);
         }
 
         if self.redraw {
@@ -407,7 +407,7 @@ impl App {
                     dam.max.y as i32,
                 );
 
-                //dam.draw_outline(*color::LOVE, &mut ctx);
+                //dam.draw_outline(color::LOVE, &mut ctx);
             }
         }
 

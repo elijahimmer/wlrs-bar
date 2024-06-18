@@ -30,14 +30,14 @@ impl Clock<'_> {
 
         let time_builder = TextBox::builder()
             .text("00".to_string())
-            .fg(*color::ROSE)
-            .bg(*color::SURFACE)
+            .fg(color::ROSE)
+            .bg(color::SURFACE)
             .desired_text_height(desired_height);
 
         let spacer_builder = TextBox::builder()
             .text("".to_string())
-            .fg(*color::PINE)
-            .bg(*color::SURFACE)
+            .fg(color::PINE)
+            .bg(color::SURFACE)
             .desired_text_height(desired_height / 3 * 2)
             .h_margins(desired_height / 5)
             .v_align(Align::CenterAt(0.45));

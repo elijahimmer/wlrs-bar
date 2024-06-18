@@ -297,8 +297,8 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         Self {
             font: &FONT,
             text: String::new(),
-            fg: *color::LOVE,
-            bg: *color::LOVE,
+            fg: color::GOLD,
+            bg: color::LOVE,
             desired_text_height: u32::MAX,
             desired_width: None,
 

@@ -8,12 +8,11 @@ pub use text_box::{TextBox, TextBoxBuilder};
 
 use crate::color::Color;
 
-use lazy_static::lazy_static;
 use rusttype::{Font, Scale};
 
 pub static FONT_DATA: &[u8] = include_bytes!("../../fonts/FiraCodeNerdFontMono-Regular.ttf");
 
-lazy_static! {
+lazy_static::lazy_static! {
     pub static ref FONT: Font<'static> =
         Font::try_from_bytes(FONT_DATA as &[u8]).expect("error constructing FiraCodeMono");
 }
