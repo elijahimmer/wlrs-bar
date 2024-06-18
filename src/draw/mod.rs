@@ -1,12 +1,12 @@
+pub mod color;
 pub mod point;
 pub mod rect;
 pub mod text_box;
 
+pub use color::Color;
 pub use point::*;
 pub use rect::*;
 pub use text_box::{TextBox, TextBoxBuilder};
-
-use crate::color::Color;
 
 use rusttype::{Font, Scale};
 

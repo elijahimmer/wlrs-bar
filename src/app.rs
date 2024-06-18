@@ -1,5 +1,4 @@
-use super::color;
-use super::draw::{Align, Point, Rect};
+use super::draw::{color, Align, Point, Rect};
 use super::widget::Widget;
 
 use smithay_client_toolkit::{
@@ -78,39 +77,31 @@ impl App {
             SlotPool::new(4000 * HEIGHT as usize, &shm_state).expect("Failed to create pool");
         //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
 
-        //let text_box = crate::draw::TextBox::builder("test box".to_owned())
-        //    .text("this is a test box".to_string())
-        //    .desired_height(HEIGHT)
-        //    .build();
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        //widgets.push(Box::new(
-        //    crate::draw::TextBox::builder()
-        //        .text("test".into())
-        //        .fg(color::PINE)
-        //        .bg(color::SURFACE)
-        //        .build("test box".into()),
-        //));
-
         widgets.push(Box::new(crate::clock::Clock::new(
-            "Clock".into(),
+            "Clock",
             HEIGHT,
             Align::Center,
             Align::Center,
         )));
 
-        match crate::workspaces::Workspaces::new(
-            "Workspaces".into(),
-            HEIGHT,
-            Align::Start,
-            Align::Center,
-        ) {
+        match crate::workspaces::Workspaces::new("Workspaces", HEIGHT, Align::Start, Align::Center)
+        {
             Ok(w) => widgets.push(Box::new(w)),
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
 
-        if let Some(timestamp) = args.updated_last {
-            // initialize updated_last
+        if let Some(time_stamp) = args.updated_last {
+            widgets.push(Box::new(
+                crate::updated_last::UpdatedLast::builder()
+                    .time_stamp(time_stamp)
+                    .h_align(Align::End)
+                    .desired_height(HEIGHT)
+                    .fg(color::ROSE)
+                    .bg(color::SURFACE)
+                    .build("Updated Last"),
+            ))
         }
 
         let mut me = Self {
@@ -239,10 +230,10 @@ impl LayerShellHandler for App {
             let wid_width = w.desired_width(wid_height).clamp(0, width);
 
             let size = Point::new(wid_width, wid_height);
-            log::trace!("'{}' | configure ::  size, size: {size}", w.name());
+            log::trace!("'{}' | configure :: size: {size}", w.name());
 
             let area = canvas.place_at(size, w.h_align(), w.v_align());
-            log::trace!("'{}' | configure :: resize, area: {area}", w.name());
+            log::trace!("'{}' | configure :: resized: {area}", w.name());
             w.resize(area);
         }
 

@@ -1,7 +1,6 @@
 pub mod utils;
 pub mod worker;
 
-use crate::color;
 use crate::draw::*;
 use crate::widget::*;
 use utils::WorkspaceID;
@@ -18,10 +17,10 @@ pub struct Workspaces<'a> {
     h_align: Align,
     v_align: Align,
     should_resize: bool,
-    fg: color::Color,
-    bg: color::Color,
-    active_fg: color::Color,
-    active_bg: color::Color,
+    fg: Color,
+    bg: Color,
+    active_fg: Color,
+    active_bg: Color,
 
     worker_handle: Option<JoinHandle<Result<()>>>,
     worker_send: Sender<ManagerMsg>,
@@ -34,12 +33,12 @@ pub struct Workspaces<'a> {
 
 impl Workspaces<'_> {
     pub fn new<'a>(
-        name: Box<str>,
+        name: &str,
         desired_height: u32,
         h_align: Align,
         v_align: Align,
     ) -> Result<Workspaces<'a>> {
-        log::info!("'{name}' initializing with height: {desired_height}");
+        log::info!("'{name}' | new :: initializing with height: {desired_height}");
 
         let fg = color::ROSE;
         let bg = color::SURFACE;
@@ -59,13 +58,13 @@ impl Workspaces<'_> {
         let wrk_name = name.to_owned();
         let worker_handle = Some(
             std::thread::Builder::new()
-                .name(name.to_owned().into())
+                .name(name.to_owned())
                 .stack_size(32 * 1024)
                 .spawn(move || work(&wrk_name, other_recv, other_send))?,
         );
 
         Ok(Workspaces {
-            name,
+            name: name.into(),
             h_align,
             v_align,
             desired_height,
@@ -157,8 +156,8 @@ impl Workspaces<'_> {
                             }
 
                             let wk = builder
-                                .text(wk_name.clone())
-                                .build(format!("{} {wk_name}", self.name).into());
+                                .text(wk_name.as_str())
+                                .build(&format!("{} {wk_name}", self.name));
                             self.workspaces.insert(idx, (id, wk));
                         })
                         .map(|_idx| log::info!("'{}' update_workspace :: created already existing workspace id={id}", self.name));

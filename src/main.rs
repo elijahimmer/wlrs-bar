@@ -1,10 +1,10 @@
 pub mod app;
-pub mod color;
 pub mod draw;
 pub mod utils;
 pub mod widget;
 
 pub mod clock;
+pub mod updated_last;
 pub mod workspaces;
 
 use clap::Parser;
@@ -12,7 +12,7 @@ use clap::Parser;
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Args {
+pub struct Args {
     /// The timestamp of the last update
     #[arg(short, long)]
     updated_last: Option<i64>,
@@ -25,11 +25,6 @@ pub fn main() {
         .init();
 
     let args = Args::parse();
-    log::info!("args: {args:?}");
-    //use clap::{arg, command};
-    //let matches = command!() // requires `cargo` feature
-    //    .arg(arg!(-u--"last-updated" <TIME_STAMP>).required(false))
-    //    .get_matches();
 
     let (mut app, mut event_queue) = app::App::new(args);
 

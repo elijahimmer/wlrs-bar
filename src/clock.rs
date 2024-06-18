@@ -1,5 +1,4 @@
-use crate::color;
-use crate::draw::{Align, DrawCtx, Rect, TextBox};
+use crate::draw::{color, Align, DrawCtx, Rect, TextBox};
 use crate::widget::{center_widgets, Widget};
 
 use anyhow::Result;
@@ -20,37 +19,32 @@ pub struct Clock<'a> {
 }
 
 impl Clock<'_> {
-    pub fn new<'a>(
-        name: Box<str>,
-        desired_height: u32,
-        h_align: Align,
-        v_align: Align,
-    ) -> Clock<'a> {
+    pub fn new<'a>(name: &str, desired_height: u32, h_align: Align, v_align: Align) -> Clock<'a> {
         log::info!("'{name}' | new :: initializing with height: {desired_height}");
 
         let time_builder = TextBox::builder()
-            .text("00".to_string())
+            .text("00")
             .fg(color::ROSE)
             .bg(color::SURFACE)
             .desired_text_height(desired_height);
 
         let spacer_builder = TextBox::builder()
-            .text("".to_string())
+            .text("")
             .fg(color::PINE)
             .bg(color::SURFACE)
             .desired_text_height(desired_height / 3 * 2)
             .h_margins(desired_height / 5)
             .v_align(Align::CenterAt(0.45));
 
-        let __hours = time_builder.build((name.to_string() + "   hours").into());
-        let minutes = time_builder.build((name.to_string() + " minutes").into());
-        let seconds = time_builder.build((name.to_string() + " seconds").into());
+        let __hours = time_builder.build(&(name.to_string() + "   hours"));
+        let minutes = time_builder.build(&(name.to_string() + " minutes"));
+        let seconds = time_builder.build(&(name.to_string() + " seconds"));
 
-        let spacer1 = spacer_builder.build((name.to_string() + " spacer1").into());
-        let spacer2 = spacer_builder.build((name.to_string() + " spacer2").into());
+        let spacer1 = spacer_builder.build(&(name.to_string() + " spacer1"));
+        let spacer2 = spacer_builder.build(&(name.to_string() + " spacer2"));
 
         Clock {
-            name,
+            name: name.into(),
             desired_height,
             h_align,
             v_align,

@@ -1,4 +1,4 @@
-use super::{Align, DrawCtx, Point};
+use super::{Align, Color, DrawCtx, Point};
 use crate::utils::cmp;
 
 //use wayland_client::protocol::wl_surface::WlSurface;
@@ -64,7 +64,7 @@ impl Rect {
     }
 
     pub fn place_at(self, size: Point, h_align: Align, v_align: Align) -> Self {
-        log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
+        //log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
         debug_assert!(self.max > self.min);
         debug_assert!(self.max.x >= self.min.x + size.x);
         debug_assert!(self.max.y >= self.min.y + size.y);
@@ -86,11 +86,10 @@ impl Rect {
                 }
             };
 
-            log::trace!(
-                "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
-                max_res - min_res,
-                //center - min_res,
-            );
+            //log::trace!(
+            //    "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
+            //    max_res - min_res,
+            //);
             debug_assert!(min_res <= max_res);
             debug_assert!(max_res - min_res == size);
 
@@ -106,7 +105,7 @@ impl Rect {
         debug_assert!(self.contains(min));
         debug_assert!(self.contains(max));
 
-        log::trace!("place_at :: result: {min} -> {max}");
+        //log::trace!("place_at :: result: {min} -> {max}");
         Self { min, max }
     }
 
@@ -123,7 +122,7 @@ impl Rect {
             && self.max.y >= r.max.y
     }
 
-    pub fn draw(self, color: crate::color::Color, ctx: &mut DrawCtx) {
+    pub fn draw(self, color: Color, ctx: &mut DrawCtx) {
         debug_assert!(self.max > self.min);
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
@@ -133,7 +132,7 @@ impl Rect {
         }
     }
 
-    pub fn draw_outline(self, color: crate::color::Color, ctx: &mut DrawCtx) {
+    pub fn draw_outline(self, color: Color, ctx: &mut DrawCtx) {
         debug_assert!(self.max > self.min);
         for x in self.min.x + 1..self.max.x {
             ctx.put(Point::new(x, self.min.y), color);

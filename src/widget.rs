@@ -89,9 +89,9 @@ pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect) {
 
 #[macro_export]
 macro_rules! builder_fields {
-    ($($t: ty, $($n: ident)+),+) => ($($(
+    ($($t: ty, $($n: ident)+;)+) => ($($(
         pub fn $n(mut self, $n: $t) -> Self {
-            self.$n = $n;
+            self.$n = $n.into();
             self
         }
     )*)*)

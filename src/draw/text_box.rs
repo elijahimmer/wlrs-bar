@@ -1,4 +1,3 @@
-use crate::color::{self, Color};
 use crate::draw::*;
 use crate::widget::*;
 
@@ -9,7 +8,7 @@ use rusttype::{Font, PositionedGlyph};
 pub struct TextBox<'glyphs> {
     font: &'glyphs Font<'glyphs>,
 
-    text: String,
+    text: Box<str>,
     text_first_diff: usize,
     name: Box<str>,
     fg: Color,
@@ -53,18 +52,25 @@ fn render_glyphs<'a>(
 
 impl<'a> TextBox<'a> {
     pub fn set_text(&mut self, new_text: &str) {
-        for (idx, (new, old)) in self.text.chars().zip(new_text.chars()).enumerate() {
-            if new != old {
-                self.text_first_diff = idx;
-                break;
-            }
-        }
         let new_text = new_text.trim();
         if new_text.is_empty() {
+            //log::trace!("'{}' set_text :: text set is empty", self.name);
             self.glyphs_size = Point::new(0, 0);
         }
-        self.rerender_text = self.text != new_text;
-        self.text = new_text.to_string();
+        //log::trace!("'{}' set_text :: text: {new_text}", self.name);
+
+        if let Some((idx, _)) = self
+            .text
+            .chars()
+            .zip(new_text.chars())
+            .enumerate()
+            .find(|(_idx, (new, old))| new != old)
+        {
+            self.text_first_diff = idx;
+        }
+
+        self.rerender_text |= *self.text != *new_text;
+        self.text = new_text.into();
     }
 
     pub fn set_fg(&mut self, fg: Color) {
@@ -119,10 +125,10 @@ impl Widget for TextBox<'_> {
 
     fn resize(&mut self, rect: Rect) {
         self.redraw = true;
-        self.rerender_text = false;
-        if rect == self.area {
+        if rect == self.area && !self.rerender_text {
             return;
         }
+        self.rerender_text = false;
 
         self.area = rect;
         let width_max =
@@ -176,6 +182,17 @@ impl Widget for TextBox<'_> {
             return Ok(());
         }
 
+        if self.rerender_text {
+            log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
+            let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
+            if width > self.area.width() {
+                self.resize(self.area); // TODO: Make it so we don't re-render twice
+            } else {
+                self.glyphs = Some(glyphs);
+                self.glyphs_size = Point::new(width, self.scale.x as u32);
+            }
+        }
+
         assert!(self.glyphs.is_some());
         assert!(self.area.size() >= self.glyphs_size);
 
@@ -190,12 +207,6 @@ impl Widget for TextBox<'_> {
         );
         assert!(area_used.size() >= self.glyphs_size);
 
-        if self.rerender_text {
-            log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
-            let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
-            self.glyphs = Some(glyphs);
-            self.glyphs_size = Point::new(width, area_used.height());
-        }
         if redraw_full {
             log::debug!("'{}' | draw :: redrawing fully", self.name);
             self.area.draw(self.bg, ctx);
@@ -210,11 +221,11 @@ impl Widget for TextBox<'_> {
                 #[cfg(debug_assertions)]
                 {
                     let glyph_width = gly.unpositioned().h_metrics().advance_width.ceil() as u32;
-                    log::trace!(
-                        "'{}' | draw :: gly: {glyph_width}, bb: {}",
-                        self.name,
-                        bb.width()
-                    );
+                    //log::trace!(
+                    //    "'{}' | draw :: gly: {glyph_width}, bb: {}",
+                    //    self.name,
+                    //    bb.width()
+                    //);
                     assert!(glyph_width >= bb.width());
                 }
 
@@ -248,6 +259,7 @@ impl Widget for TextBox<'_> {
             ctx.damage.push(self.area);
         } else if self.rerender_text {
             ctx.damage.push(area_used);
+            self.rerender_text = false;
         }
 
         //self.area.draw_outline(self.fg, ctx);
@@ -278,7 +290,7 @@ impl PositionedWidget for TextBox<'_> {
 #[derive(Clone)]
 pub struct TextBoxBuilder<'glyphs> {
     font: &'glyphs Font<'glyphs>,
-    text: String,
+    text: Box<str>,
     fg: Color,
     bg: Color,
     desired_text_height: u32,
@@ -296,12 +308,12 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     pub fn new() -> TextBoxBuilder<'glyphs> {
         Self {
             font: &FONT,
-            text: String::new(),
             fg: color::GOLD,
             bg: color::LOVE,
             desired_text_height: u32::MAX,
             desired_width: None,
 
+            text: Default::default(),
             top_margin: Default::default(),
             bottom_margin: Default::default(),
             left_margin: Default::default(),
@@ -312,16 +324,11 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     }
 
     crate::builder_fields! {
-        &'glyphs Font<'glyphs>, font,
-        String, text,
-        Color, fg bg,
-        u32, desired_text_height top_margin bottom_margin left_margin right_margin,
-        Align, v_align h_align
-    }
-
-    pub fn desired_width(mut self, width: u32) -> Self {
-        self.desired_width = Some(width);
-        self
+        &'glyphs Font<'glyphs>, font;
+        &str, text;
+        Color, fg bg;
+        u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
+        Align, v_align h_align;
     }
 
     pub fn h_margins(mut self, margin: u32) -> Self {
@@ -336,15 +343,15 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         self
     }
 
-    pub fn build(&self, name: Box<str>) -> TextBox<'glyphs> {
+    pub fn build(&self, name: &str) -> TextBox<'glyphs> {
         TextBox {
             font: self.font,
-            text: self.text.to_owned(),
+            text: self.text.clone(),
             fg: self.fg,
             bg: self.bg,
             desired_text_height: self.desired_text_height,
             desired_width: self.desired_width,
-            name,
+            name: name.into(),
 
             top_margin: self.top_margin,
             bottom_margin: self.bottom_margin,
