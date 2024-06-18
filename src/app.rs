@@ -47,7 +47,7 @@ pub struct App {
     pub width: u32,
     pub height: u32,
     pub redraw: bool,
-    pub widgets: Vec<Box<dyn Widget>>,
+    pub widgets: Vec<Box<dyn Widget<DrawError = anyhow::Error>>>,
     pub last_damage: Vec<Rect>,
 }
 
@@ -82,7 +82,7 @@ impl App {
         //    .text("this is a test box".to_string())
         //    .desired_height(HEIGHT)
         //    .build();
-        let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
+        let mut widgets: Vec<Box<dyn Widget<DrawError = anyhow::Error>>> = Vec::new();
 
         //widgets.push(Box::new(
         //    crate::draw::TextBox::builder()

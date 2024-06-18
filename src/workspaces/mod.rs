@@ -50,8 +50,8 @@ impl Workspaces<'_> {
             .fg(fg)
             .bg(bg)
             .h_align(Align::Center)
-            .v_align(Align::Start)
-            .desired_text_height(desired_height);
+            .v_align(Align::Center)
+            .desired_text_height(desired_height * 20 / 23);
 
         let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
         let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
@@ -245,9 +245,13 @@ impl Widget for Workspaces<'_> {
         });
         self.area = area;
     }
+
+    type DrawError = anyhow::Error;
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_workspaces()?;
-        if self.should_resize {
+        let redraw = ctx.full_redraw;
+        if self.should_resize || redraw {
+            ctx.full_redraw = true;
             self.area.draw(self.bg, ctx);
             self.resize(self.area);
             self.should_resize = false;
@@ -263,6 +267,8 @@ impl Widget for Workspaces<'_> {
                 );
             }
         });
+
+        ctx.full_redraw = redraw;
         Ok(())
     }
 }

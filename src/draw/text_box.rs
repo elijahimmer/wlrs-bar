@@ -2,7 +2,6 @@ use crate::color::{self, Color};
 use crate::draw::*;
 use crate::widget::*;
 
-use anyhow::Result;
 use rusttype::{Font, PositionedGlyph};
 
 #[derive(Clone)]
@@ -118,10 +117,13 @@ impl Widget for TextBox<'_> {
     }
 
     fn resize(&mut self, rect: Rect) {
-        self.area = rect;
         self.redraw = true;
         self.rerender_text = false;
+        if rect == self.area {
+            return;
+        }
 
+        self.area = rect;
         let width_max =
             (rect.width() - self.h_margins()).clamp(0, self.desired_width.unwrap_or(u32::MAX));
         let height_used = (rect.height() - self.v_margins()).clamp(0, self.desired_text_height);
@@ -162,15 +164,15 @@ impl Widget for TextBox<'_> {
         };
     }
 
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+    type DrawError = std::convert::Infallible;
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<(), Self::DrawError> {
         if self.glyphs_size.x == 0 || self.glyphs_size.y == 0 {
-            // glyphs are 0 width
             return Ok(());
         }
 
         let redraw_full = ctx.full_redraw || self.redraw;
 
-        if !redraw_full && !self.rerender_text || self.text.is_empty() {
+        if self.text.is_empty() || (!redraw_full && !self.rerender_text) {
             return Ok(());
         }
 
@@ -242,7 +244,9 @@ impl Widget for TextBox<'_> {
             }
         }
 
-        if self.rerender_text {
+        if redraw_full {
+            ctx.damage.push(self.area);
+        } else if self.rerender_text {
             ctx.damage.push(area_used);
         }
 

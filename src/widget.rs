@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use crate::draw::{Align, DrawCtx, Point, Rect};
 
 pub trait Widget {
@@ -11,7 +9,8 @@ pub trait Widget {
     fn desired_width(&self, height: u32) -> u32;
 
     fn resize(&mut self, rect: Rect);
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()>;
+    type DrawError;
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<(), Self::DrawError>;
 }
 
 pub trait PositionedWidget {

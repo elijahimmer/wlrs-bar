@@ -1,11 +1,9 @@
-use anyhow::Result;
-use chrono::Timelike;
-
 use crate::color;
 use crate::draw::{Align, DrawCtx, Rect, TextBox};
 use crate::widget::{center_widgets, Widget};
 
-pub const NUM_CHARS: u32 = 8;
+use anyhow::Result;
+use chrono::Timelike;
 
 pub struct Clock<'a> {
     name: Box<str>,
@@ -126,6 +124,8 @@ impl Widget for Clock<'_> {
         center_widgets(&mut inner_as_slice!(self mut), area);
         self.area = area;
     }
+
+    type DrawError = anyhow::Error;
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_time();
         inner_as_slice!(self mut).iter_mut().for_each(|w| {
