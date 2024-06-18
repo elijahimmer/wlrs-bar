@@ -57,9 +57,12 @@ impl Workspaces<'_> {
         let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
 
         let wrk_name = name.to_owned();
-        let worker_handle = Some(std::thread::spawn(move || {
-            work(&wrk_name, other_recv, other_send)
-        }));
+        let worker_handle = Some(
+            std::thread::Builder::new()
+                .name(name.to_owned().into())
+                .stack_size(32 * 1024)
+                .spawn(move || work(&wrk_name, other_recv, other_send))?,
+        );
 
         Ok(Workspaces {
             name,
