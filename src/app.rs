@@ -47,12 +47,12 @@ pub struct App {
     pub width: u32,
     pub height: u32,
     pub redraw: bool,
-    pub widgets: Vec<Box<dyn Widget<DrawError = anyhow::Error>>>,
+    pub widgets: Vec<Box<dyn Widget>>,
     pub last_damage: Vec<Rect>,
 }
 
 impl App {
-    pub fn new() -> (Self, EventQueue<Self>) {
+    pub fn new(args: crate::Args) -> (Self, EventQueue<Self>) {
         log::info!("new :: Starting wayland client");
         let connection = Connection::connect_to_env().unwrap();
 
@@ -82,7 +82,7 @@ impl App {
         //    .text("this is a test box".to_string())
         //    .desired_height(HEIGHT)
         //    .build();
-        let mut widgets: Vec<Box<dyn Widget<DrawError = anyhow::Error>>> = Vec::new();
+        let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
         //widgets.push(Box::new(
         //    crate::draw::TextBox::builder()
@@ -108,6 +108,10 @@ impl App {
             Ok(w) => widgets.push(Box::new(w)),
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
+
+        if let Some(timestamp) = args.updated_last {
+            // initialize updated_last
+        }
 
         let mut me = Self {
             connection,

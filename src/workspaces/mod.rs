@@ -246,7 +246,6 @@ impl Widget for Workspaces<'_> {
         self.area = area;
     }
 
-    type DrawError = anyhow::Error;
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_workspaces()?;
         let redraw = ctx.full_redraw;

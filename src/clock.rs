@@ -125,7 +125,6 @@ impl Widget for Clock<'_> {
         self.area = area;
     }
 
-    type DrawError = anyhow::Error;
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_time();
         inner_as_slice!(self mut).iter_mut().for_each(|w| {

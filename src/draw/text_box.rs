@@ -2,6 +2,7 @@ use crate::color::{self, Color};
 use crate::draw::*;
 use crate::widget::*;
 
+use anyhow::Result;
 use rusttype::{Font, PositionedGlyph};
 
 #[derive(Clone)]
@@ -164,8 +165,7 @@ impl Widget for TextBox<'_> {
         };
     }
 
-    type DrawError = std::convert::Infallible;
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<(), Self::DrawError> {
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if self.glyphs_size.x == 0 || self.glyphs_size.y == 0 {
             return Ok(());
         }

@@ -1,5 +1,5 @@
 use super::utils::*;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::io::Read;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
@@ -12,16 +12,16 @@ pub enum WorkerMsg {
 }
 
 impl WorkerMsg {
-    pub fn parse(cmd: &str, msg: &str) -> Option<WorkerMsg> {
-        match cmd {
-            "workspace" => Some(Self::WorkspaceSetActive(msg.parse().ok()?)),
-            "createworkspace" => Some(Self::WorkspaceCreate(msg.parse().ok()?)),
-            "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse().ok()?)),
+    pub fn parse(cmd: &str, msg: &str) -> Result<Option<WorkerMsg>> {
+        Ok(match cmd {
+            "workspace" => Some(Self::WorkspaceSetActive(msg.parse()?)),
+            "createworkspace" => Some(Self::WorkspaceCreate(msg.parse()?)),
+            "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse()?)),
             _ => {
                 log::trace!("work :: cmd: '{cmd}' msg: '{msg}'");
                 None
             }
-        }
+        })
     }
 }
 
@@ -62,7 +62,11 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
         String::from_utf8_lossy(&buf[..bytes_read])
             .lines()
             .filter_map(|line| line.find(">>").map(|idx| (&line[..idx], &line[idx + 2..])))
-            .filter_map(|(cmd, msg)| WorkerMsg::parse(cmd, msg))
+            .filter_map(|(cmd, msg)| {
+                WorkerMsg::parse(cmd, msg)
+                    .map_err(|err| log::warn!("Failed to parse WorkerMsg. err='{err}'"))
+                    .ok()?
+            })
             .try_for_each(|msg| send.send(msg))?;
     }
 
