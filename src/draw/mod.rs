@@ -34,15 +34,15 @@ pub enum Align {
 
 use smithay_client_toolkit::shm::slot::Buffer;
 pub struct DrawCtx<'ctx> {
-    pub damage: &'ctx mut Vec<Rect<u32>>,
+    pub damage: &'ctx mut Vec<Rect>,
     pub buffer: &'ctx Buffer,
     pub canvas: &'ctx mut [u8],
-    pub rect: Rect<u32>,
+    pub rect: Rect,
     pub full_redraw: bool,
 }
 
 impl DrawCtx<'_> {
-    pub fn put(&mut self, pnt: Point<u32>, color: Color) {
+    pub fn put(&mut self, pnt: Point, color: Color) {
         debug_assert!(self.rect.contains(pnt));
 
         let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;

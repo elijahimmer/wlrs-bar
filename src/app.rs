@@ -48,12 +48,12 @@ pub struct App {
     pub height: u32,
     pub redraw: bool,
     pub widgets: Vec<Box<dyn Widget>>,
-    pub last_damage: Vec<Rect<u32>>,
+    pub last_damage: Vec<Rect>,
 }
 
 impl App {
     pub fn new() -> (Self, EventQueue<Self>) {
-        log::info!("Starting wayland client");
+        log::info!("new :: Starting wayland client");
         let connection = Connection::connect_to_env().unwrap();
 
         let (globals, mut event_queue) = registry_queue_init(&connection).unwrap();
@@ -80,26 +80,34 @@ impl App {
 
         //let text_box = crate::draw::TextBox::builder("test box".to_owned())
         //    .text("this is a test box".to_string())
-        //    .desired_height(HEIGHT as f32)
+        //    .desired_height(HEIGHT)
         //    .build();
-        let mut widgets: Vec<Box<dyn Widget>> = vec![];
+        let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
+
+        //widgets.push(Box::new(
+        //    crate::draw::TextBox::builder()
+        //        .text("test".into())
+        //        .fg(*color::PINE)
+        //        .bg(*color::SURFACE)
+        //        .build("test box".into()),
+        //));
 
         widgets.push(Box::new(crate::clock::Clock::new(
             "Clock".into(),
-            HEIGHT as f32,
+            HEIGHT,
             Align::Center,
             Align::Center,
         )));
 
-        match crate::workspaces::Workspaces::new(
-            "Workspaces".into(),
-            HEIGHT as f32,
-            Align::Start,
-            Align::Center,
-        ) {
-            Ok(w) => widgets.push(Box::new(w)),
-            Err(err) => log::warn!("Workspaces failed to initialize. error={err}"),
-        };
+        //match crate::workspaces::Workspaces::new(
+        //    "Workspaces".into(),
+        //    HEIGHT,
+        //    Align::Start,
+        //    Align::Center,
+        //) {
+        //    Ok(w) => widgets.push(Box::new(w)),
+        //    Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
+        //};
 
         let mut me = Self {
             connection,
@@ -210,7 +218,7 @@ impl LayerShellHandler for App {
             self.height = HEIGHT;
         } else {
             log::debug!(
-                "new size requested ({}, {})",
+                "configure :: new size requested ({}, {})",
                 configure.new_size.0,
                 configure.new_size.1
             );
@@ -218,20 +226,20 @@ impl LayerShellHandler for App {
             self.height = configure.new_size.1;
         }
 
-        let (width, height) = (self.width as f32, self.height as f32);
+        let (width, height) = (self.width, self.height);
         let canvas_size = Point::new(width, height);
-        let canvas = canvas_size.extend_to(0.0, 0.0);
+        let canvas = canvas_size.extend_to(Point::new(0, 0));
 
         for w in self.widgets.iter_mut() {
-            let wid_height = w.desired_height().clamp(0.0, height);
+            let wid_height = w.desired_height().clamp(0, height);
             assert_eq!(wid_height, height);
-            let wid_width = w.desired_width(wid_height).clamp(0.0, width);
+            let wid_width = w.desired_width(wid_height).clamp(0, width);
 
             let size = Point::new(wid_width, wid_height);
-            log::trace!("'{}', size, size: {size:?}", w.name());
+            log::trace!("'{}' | configure ::  size, size: {size}", w.name());
 
             let area = canvas.place_at(size, w.h_align(), w.v_align());
-            log::trace!("'{}', resize, area: {area:?}", w.name());
+            log::trace!("'{}' | configure :: resize, area: {area}", w.name());
             w.resize(area);
         }
 
@@ -260,7 +268,7 @@ impl SeatHandler for App {
         capability: Capability,
     ) {
         if capability == Capability::Pointer && self.pointer.is_none() {
-            log::debug!("Set pointer capability");
+            log::debug!("new_capability :: Set pointer capability");
             let pointer = self
                 .seat_state
                 .get_pointer(qh, &seat)
@@ -277,7 +285,7 @@ impl SeatHandler for App {
         capability: Capability,
     ) {
         if capability == Capability::Pointer && self.pointer.is_some() {
-            log::debug!("Unset pointer capability");
+            log::debug!("new_capability :: Unset pointer capability");
             self.pointer.take().unwrap().release();
         }
     }
@@ -301,24 +309,28 @@ impl PointerHandler for App {
             }
             match event.kind {
                 Enter { .. } => {
-                    log::trace!("Pointer entered @{:?}", event.position);
+                    log::trace!("pointer_frame :: Pointer entered @{:?}", event.position);
                 }
                 Leave { .. } => {
-                    log::trace!("Pointer left");
+                    log::trace!("pointer_frame :: Pointer left");
                 }
                 Motion { .. } => {}
                 Press { button, .. } => {
-                    log::trace!("Press {:x} @ {:?}", button, event.position);
+                    log::trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
                 }
                 Release { button, .. } => {
-                    log::trace!("Release {:x} @ {:?}", button, event.position);
+                    log::trace!(
+                        "pointer_frame :: Release {:x} @ {:?}",
+                        button,
+                        event.position
+                    );
                 }
                 Axis {
                     horizontal,
                     vertical,
                     ..
                 } => {
-                    log::trace!("Scroll H:{horizontal:?}, V:{vertical:?}");
+                    log::trace!("pointer_frame :: Scroll H:{horizontal:?}, V:{vertical:?}");
                 }
             }
         }
@@ -342,12 +354,12 @@ impl App {
             )
             .unwrap();
 
-        let rect = Point::new(0, 0).extend_to(self.width, self.height);
+        let rect = Point::new(0, 0).extend_to(Point::new(self.width, self.height));
 
         let surface = self.layer_surface.wl_surface();
 
         let mut ctx = crate::draw::DrawCtx {
-            damage: &mut vec![],
+            damage: &mut Vec::new(),
             buffer: &buffer,
             canvas,
             rect,
@@ -370,14 +382,14 @@ impl App {
 
         for w in self.widgets.iter_mut() {
             if let Err(err) = w.draw(&mut ctx) {
-                log::warn!("widget failed to draw: error={err}");
+                log::warn!("draw :: widget failed to draw: error={err}");
             }
             w.area().draw_outline(*color::PINE, &mut ctx);
         }
 
         if self.redraw {
             self.redraw = false;
-            log::debug!("full redraw");
+            log::debug!("draw :: full redraw");
 
             // Damage the entire window
             surface.damage_buffer(0, 0, self.width as i32, self.height as i32);
@@ -402,7 +414,7 @@ impl App {
         self.layer_surface.commit();
 
         // hack to test all sizes above your own (until it hits some limit)
-        //log::info!("height: {}", self.height);
+        //log::info!("draw :: height: {}", self.height);
         //self.layer_surface.set_size(WIDTH, self.height - 1);
         //self.layer_surface
         //    .set_exclusive_zone(self.height as i32 - 1);
@@ -412,11 +424,11 @@ impl App {
     pub fn run_queue(&mut self, event_queue: &mut EventQueue<Self>) {
         loop {
             if let Err(err) = event_queue.blocking_dispatch(self) {
-                log::warn!("event queue error: error={err}");
+                log::warn!("run_queue :: event queue error: error={err}");
             }
 
             if self.should_exit {
-                log::info!("exiting...");
+                log::info!("run_queue :: exiting...");
                 break;
             }
         }

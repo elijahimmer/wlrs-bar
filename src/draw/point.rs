@@ -1,105 +1,73 @@
 use crate::draw::Rect;
-use crate::utils::{max, min};
 
-use num_traits::{FromPrimitive, Num, NumCast};
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct Point<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> {
-    pub x: T,
-    pub y: T,
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct Point {
+    pub x: u32,
+    pub y: u32,
 }
 
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Point<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Point { x, y }
+impl Point {
+    pub fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
     }
 
-    pub fn extend_to(self, x: T, y: T) -> Rect<T> {
-        Rect::<T>::new(self, Self::new(x, y))
+    pub fn extend_to(self, other: Self) -> Rect {
+        Rect::new(self, other)
     }
 
     pub fn smallest(self, other: Self) -> Self {
-        Self::new(min(self.x, other.x), min(self.y, other.y))
+        Self::new(self.x.min(other.x), self.y.min(other.y))
     }
 
     pub fn largest(self, other: Self) -> Self {
-        Self::new(max(self.x, other.x), max(self.y, other.y))
+        Self::new(self.x.max(other.x), self.y.max(other.y))
     }
 }
 
-macro_rules! from_impl_same {
-    ($($t:ty)+) => ($(
-        impl From<rusttype::Point<$t>> for Point<$t> {
-            fn from(val: rusttype::Point<$t>) -> Self {
-                Self::new(val.x, val.y)
-            }
-        }
-
-        impl From<Point<$t>> for rusttype::Point<$t> {
-            fn from(val: Point<$t>) -> Self {
-                Self { x: val.x, y: val.y }
-            }
-        }
-    )*)
+impl From<rusttype::Point<u32>> for Point {
+    fn from(val: rusttype::Point<u32>) -> Self {
+        Self::new(val.x, val.y)
+    }
 }
 
-macro_rules! from_impl_self {
-    ($t:ty, $($f:ty)+) => ($(
-        impl From<Point<$t>> for Point<$f> {
-            fn from(val: Point<$t>) -> Self {
-                Self::new(<$f as NumCast>::from(val.x).unwrap(), <$f as NumCast>::from(val.y).unwrap())
-            }
-        }
-
-        impl From<rusttype::Point<$t>> for Point<$f> {
-            fn from(val: rusttype::Point<$t>) -> Self {
-                Self::new(
-                    <$f as NumCast>::from(val.x).unwrap(),
-                    <$f as NumCast>::from(val.y).unwrap(),
-                )
-            }
-        }
-
-        impl From<Point<$t>> for rusttype::Point<$f> {
-            fn from(val: Point<$t>) -> Self {
-                Self {
-                    x: <$f as NumCast>::from(val.x).unwrap(),
-                    y: <$f as NumCast>::from(val.y).unwrap(),
-                }
-            }
-        }
-
-        impl From<($t, $t)> for Point<$f> {
-            fn from(val: ($t, $t)) -> Self {
-                Self {
-                    x: <$f as NumCast>::from(val.0).unwrap(),
-                    y: <$f as NumCast>::from(val.1).unwrap(),
-                }
-            }
-        }
-    )*)
+impl From<Point> for rusttype::Point<u32> {
+    fn from(val: Point) -> Self {
+        Self { x: val.x, y: val.y }
+    }
 }
 
-from_impl_self! { u8, u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { u16, u8 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { u32, u8 u16 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { u64, u8 u16 u32 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { u128, u8 u16 u32 u64 usize i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { usize, u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { i8, u8 u16 u32 u64 u128 usize i16 i32 i64 i128 isize f32 f64 }
-from_impl_self! { i16, u8 u16 u32 u64 u128 usize i8 i32 i64 i128 isize f32 f64 }
-from_impl_self! { i32, u8 u16 u32 u64 u128 usize i8 i16 i64 i128 isize f32 f64 }
-from_impl_self! { i64, u8 u16 u32 u64 u128 usize i8 i16 i32 i128 isize f32 f64 }
-from_impl_self! { i128, u8 u16 u32 u128 u64 usize i8 i16 i32 i64 isize f32 f64 }
-from_impl_self! { isize, u8 u16 u32 usize u64 u128 i8 i16 i32 i64 i128 f32 f64 }
-from_impl_self! { f32, u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f64 }
-from_impl_self! { f64, u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 }
-from_impl_same! { u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 }
+impl From<rusttype::Point<i32>> for Point {
+    fn from(val: rusttype::Point<i32>) -> Self {
+        Self::new(val.x as u32, val.y as u32)
+    }
+}
+
+impl From<Point> for rusttype::Point<i32> {
+    fn from(val: Point) -> Self {
+        Self {
+            x: val.x as i32,
+            y: val.y as i32,
+        }
+    }
+}
+
+impl From<rusttype::Point<f32>> for Point {
+    fn from(val: rusttype::Point<f32>) -> Self {
+        Self::new(val.x.round() as u32, val.y.round() as u32)
+    }
+}
+
+impl From<Point> for rusttype::Point<f32> {
+    fn from(val: Point) -> Self {
+        Self {
+            x: val.x as f32,
+            y: val.y as f32,
+        }
+    }
+}
 
 use std::ops::Add;
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Add<Self>
-    for Point<T>
-{
+impl Add<Self> for Point {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -111,9 +79,7 @@ impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Ad
 }
 
 use std::ops::Sub;
-impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Sub<Self>
-    for Point<T>
-{
+impl Sub<Self> for Point {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -121,5 +87,27 @@ impl<T: FromPrimitive + NumCast + Num + Copy + PartialOrd + core::fmt::Debug> Su
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
+    }
+}
+
+use std::cmp::{Ordering, PartialOrd};
+impl PartialOrd for Point {
+    // Required method
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let x_cmp = self.x.cmp(&other.x);
+        let y_cmp = self.y.cmp(&other.y);
+
+        if x_cmp == y_cmp {
+            Some(x_cmp)
+        } else {
+            None
+        }
+    }
+}
+
+use std::fmt::{Display, Error as FmtError, Formatter};
+impl Display for Point {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(f, "{} x {}", self.x, self.y)
     }
 }

@@ -9,8 +9,8 @@ pub const NUM_CHARS: u32 = 8;
 
 pub struct Clock<'a> {
     name: Box<str>,
-    desired_height: f32,
-    area: Rect<f32>,
+    desired_height: u32,
+    area: Rect,
     h_align: Align,
     v_align: Align,
 
@@ -24,11 +24,11 @@ pub struct Clock<'a> {
 impl Clock<'_> {
     pub fn new<'a>(
         name: Box<str>,
-        desired_height: f32,
+        desired_height: u32,
         h_align: Align,
         v_align: Align,
     ) -> Clock<'a> {
-        log::info!("'{name}' initializing with height: {desired_height}");
+        log::info!("'{name}' | new :: initializing with height: {desired_height}");
 
         let time_builder = TextBox::builder()
             .text("00".to_string())
@@ -40,8 +40,8 @@ impl Clock<'_> {
             .text("".to_string())
             .fg(*color::PINE)
             .bg(*color::SURFACE)
-            .desired_text_height(desired_height / 1.5)
-            .h_margins(desired_height / 5.0)
+            .desired_text_height(desired_height * 3 / 2)
+            .h_margins(desired_height / 5)
             .v_align(Align::CenterAt(0.45));
 
         let __hours = time_builder.build((name.to_string() + "   hours").into());
@@ -100,7 +100,7 @@ impl Widget for Clock<'_> {
         &self.name
     }
 
-    fn area(&self) -> Rect<f32> {
+    fn area(&self) -> Rect {
         self.area
     }
 
@@ -112,17 +112,17 @@ impl Widget for Clock<'_> {
         self.v_align
     }
 
-    fn desired_height(&self) -> f32 {
+    fn desired_height(&self) -> u32 {
         self.desired_height
     }
 
-    fn desired_width(&self, height: f32) -> f32 {
+    fn desired_width(&self, height: u32) -> u32 {
         inner_as_slice!(self)
             .iter_mut()
-            .fold(0.0, |acc, w| acc + w.desired_width(height))
+            .fold(0, |acc, w| acc + w.desired_width(height))
     }
 
-    fn resize(&mut self, area: Rect<f32>) {
+    fn resize(&mut self, area: Rect) {
         center_widgets(&mut inner_as_slice!(self mut), area);
         self.area = area;
     }
@@ -131,7 +131,7 @@ impl Widget for Clock<'_> {
         inner_as_slice!(self mut).iter_mut().for_each(|w| {
             if let Err(err) = w.draw(ctx) {
                 log::warn!(
-                    "'{}', widget '{}' failed to draw. error={err}",
+                    "'{}' | draw :: widget '{}' failed to draw. error={err}",
                     self.name,
                     w.name()
                 );

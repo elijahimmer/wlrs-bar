@@ -5,14 +5,12 @@ pub mod utils;
 pub mod widget;
 
 pub mod clock;
-pub mod workspaces;
+//pub mod workspaces;
 
 pub fn main() {
-    env_logger::init();
-
-    //use workspaces::utils::*;
-
-    //println!("{:?}", get_workspaces().unwrap());
+    env_logger::Builder::from_default_env()
+        //.format_module_path(true)
+        .init();
 
     let (mut app, mut event_queue) = app::App::new();
 
