@@ -1,5 +1,5 @@
 {
-  description = "A GTK4 Wayland Status Bar";
+  description = "Hyprland Status Bar";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     # Very nice to use
@@ -38,7 +38,7 @@
       inherit buildInputs;
       src = ./.;
       meta = with pkgs.lib; {
-        description = "A WLroots status bar.";
+        description = "A status bar for Hyprland.";
         homepage = "https://github.com/elijahimmer/bar-wlrs";
         license = licenses.mit;
         mainProgram = "bar-wlrs";
