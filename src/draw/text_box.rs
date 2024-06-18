@@ -45,7 +45,7 @@ fn render_glyphs<'a>(
     let glyphs: Vec<_> = font.layout(text, scale, offset.into()).collect();
     let width = glyphs.last().map_or_else(
         || 0,
-        |g| (g.position().x + g.unpositioned().h_metrics().advance_width).round() as u32,
+        |g| (g.position().x + g.unpositioned().h_metrics().advance_width).ceil() as u32,
     );
 
     (glyphs, width)
@@ -106,7 +106,7 @@ impl Widget for TextBox<'_> {
         }
 
         if self.text.is_empty() || height == 0 {
-            log::debug!("{} | desired_width :: nothing to display", self.name);
+            log::debug!("'{}' | desired_width :: nothing to display", self.name);
             return 0;
         }
 
@@ -137,7 +137,7 @@ impl Widget for TextBox<'_> {
         let (glyphs, width_used) = render_glyphs(self.font, &self.text, self.scale);
 
         if width_used <= width_max {
-            log::debug!("{} | resize :: using desired scale", self.name);
+            log::debug!("'{}' | resize :: using desired scale", self.name);
             self.glyphs_size = Point::new(width_used, height_used);
             self.glyphs = Some(glyphs);
         } else {
@@ -147,8 +147,8 @@ impl Widget for TextBox<'_> {
             let height_used_new = (height_used as f32 * ratio).round() as u32;
             let scale_new = Scale::uniform(height_used_new as f32);
             log::debug!(
-                target: &self.name,
-                "resize :: scale down by {ratio} from {:?} to {:?}",
+                "'{}' resize :: scale down by {ratio} from {:?} to {:?}",
+                self.name,
                 self.scale,
                 scale_new
             );
@@ -181,7 +181,7 @@ impl Widget for TextBox<'_> {
             .area
             .place_at(self.glyphs_size, self.h_align, self.v_align);
         log::trace!(
-            "{} | draw :: glyph_size: {:?}, area_size: {:?}",
+            "'{}' | draw :: glyph_size: {}, area_size: {}",
             self.name,
             self.glyphs_size,
             area_used.size()
@@ -189,13 +189,13 @@ impl Widget for TextBox<'_> {
         assert!(area_used.size() >= self.glyphs_size);
 
         if self.rerender_text {
-            log::debug!("{} | draw :; re-rendering glyphs", self.name);
+            log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             self.glyphs = Some(glyphs);
             self.glyphs_size = Point::new(width, area_used.height());
         }
         if redraw_full {
-            log::debug!("{} | draw :: redrawing fully", self.name);
+            log::debug!("'{}' | draw :: redrawing fully", self.name);
             self.area.draw(self.bg, ctx);
         }
 
@@ -207,9 +207,9 @@ impl Widget for TextBox<'_> {
                 let mut bb: Rect = bb_i32.into();
                 #[cfg(debug_assertions)]
                 {
-                    let glyph_width = gly.unpositioned().h_metrics().advance_width.round() as u32;
+                    let glyph_width = gly.unpositioned().h_metrics().advance_width.ceil() as u32;
                     log::trace!(
-                        "{} | draw :: gly: {glyph_width}, bb: {}",
+                        "'{}' | draw :: gly: {glyph_width}, bb: {}",
                         self.name,
                         bb.width()
                     );
@@ -218,7 +218,7 @@ impl Widget for TextBox<'_> {
 
                 if idx == self.text_first_diff && !redraw_full {
                     bb_last.max.x = area_used.max.x;
-                    log::trace!("{} | draw :: filling back, {idx}", self.name);
+                    //log::trace!("'{}' | draw :: filling back, {idx}", self.name);
                     bb_last.draw(self.bg, ctx);
                 }
                 bb.min.y += area_used.min.y;
@@ -226,7 +226,7 @@ impl Widget for TextBox<'_> {
                 bb.min.x += area_used.min.x;
                 bb.max.x += area_used.min.x;
 
-                log::trace!("{} | draw :: area: {area_used}, bb: {bb}", self.name);
+                //log::trace!("'{}' | draw :: area: {area_used}, bb: {bb}", self.name);
                 debug_assert!(area_used.contains_rect(bb));
 
                 ctx.damage.push(bb);
@@ -246,7 +246,7 @@ impl Widget for TextBox<'_> {
             ctx.damage.push(area_used);
         }
 
-        self.area.draw_outline(self.fg, ctx);
+        //self.area.draw_outline(self.fg, ctx);
         //area_used.draw_outline(self.fg, ctx);
 
         self.text_first_diff = 0;

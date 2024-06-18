@@ -232,7 +232,6 @@ impl LayerShellHandler for App {
 
         for w in self.widgets.iter_mut() {
             let wid_height = w.desired_height().clamp(0, height);
-            assert_eq!(wid_height, height);
             let wid_width = w.desired_width(wid_height).clamp(0, width);
 
             let size = Point::new(wid_width, wid_height);
@@ -384,7 +383,7 @@ impl App {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("draw :: widget failed to draw: error={err}");
             }
-            w.area().draw_outline(*color::PINE, &mut ctx);
+            //w.area().draw_outline(*color::PINE, &mut ctx);
         }
 
         if self.redraw {
@@ -415,9 +414,9 @@ impl App {
 
         // hack to test all sizes above your own (until it hits some limit)
         //log::info!("draw :: height: {}", self.height);
-        //self.layer_surface.set_size(WIDTH, self.height - 1);
+        //self.layer_surface.set_size(WIDTH, self.height + 1);
         //self.layer_surface
-        //    .set_exclusive_zone(self.height as i32 - 1);
+        //    .set_exclusive_zone(self.height as i32 + 1);
         //self.layer_surface.commit();
     }
 

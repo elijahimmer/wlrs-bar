@@ -3,7 +3,12 @@ use crate::utils::cmp;
 
 //use wayland_client::protocol::wl_surface::WlSurface;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
+/**
+ * A Rectangle to present area used on the screen.
+ * The min should *always* be smaller than, not equal to,
+ *  the max in both x and y.
+ */
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Rect {
     pub min: Point,
     pub max: Point,
@@ -13,8 +18,8 @@ impl Rect {
     pub fn new(a: Point, b: Point) -> Self {
         let (min_x, max_x) = cmp(a.x, b.x);
         let (min_y, max_y) = cmp(a.y, b.y);
-        debug_assert!(min_x <= max_x);
-        debug_assert!(min_y <= max_y);
+        debug_assert!(min_x < max_x);
+        debug_assert!(min_y < max_y);
 
         Self {
             min: Point { x: min_x, y: min_y },
@@ -69,17 +74,26 @@ impl Rect {
             let (min_res, max_res) = match align {
                 Align::Start => (min, min + size),
                 Align::End => (max - size, max),
-                Align::Center => (center - (size / 2), center + (size / 2)),
+                Align::Center => (center - (size / 2), center + (size / 2) + (size % 2)),
                 Align::CenterAt(ratio) => {
-                    let up = ((size as f32 * (1.0 - ratio)).round() as u32).min(center);
-                    (center - up, center + (size - up))
+                    let up = (size as f32 * (1.0 - ratio)).round() as u32;
+                    if center < up || center - up < min {
+                        (center - (size / 2), center + (size / 2) + (size % 2))
+                    } else {
+                        (center - up, center + (size - up) + (size % 2))
+                    }
                 }
             };
 
+            log::trace!(
+                "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
+                max_res - min_res,
+                //center - min_res,
+            );
             debug_assert!(min_res <= max_res);
             debug_assert!(max_res - min_res == size);
 
-            (min, max)
+            (min_res, max_res)
         };
 
         let (x_min, x_max) = align(h_align, self.min.x, self.max.x, size.x);
@@ -91,7 +105,7 @@ impl Rect {
         debug_assert!(self.contains(min));
         debug_assert!(self.contains(max));
 
-        log::trace!("place_at :: min: {min}, max: {max}");
+        log::trace!("place_at :: result: {min} -> {max}");
         Self { min, max }
     }
 
@@ -149,7 +163,7 @@ impl From<Rect> for rusttype::Rect<i32> {
 use std::fmt::{Display, Error as FmtError, Formatter};
 impl Display for Rect {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(f, "({}) -> ({})", self.min, self.max)
+        write!(f, "{} -> {}", self.min, self.max)
     }
 }
 

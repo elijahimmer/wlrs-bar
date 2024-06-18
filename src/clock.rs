@@ -40,7 +40,7 @@ impl Clock<'_> {
             .text("".to_string())
             .fg(*color::PINE)
             .bg(*color::SURFACE)
-            .desired_text_height(desired_height * 3 / 2)
+            .desired_text_height(desired_height / 3 * 2)
             .h_margins(desired_height / 5)
             .v_align(Align::CenterAt(0.45));
 
