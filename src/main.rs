@@ -8,8 +8,9 @@ pub mod clock;
 pub mod workspaces;
 
 pub fn main() {
-    env_logger::Builder::from_default_env()
-        //.format_module_path(true)
+    pretty_env_logger::formatted_builder()
+        .filter_level(log::LevelFilter::Info)
+        .parse_env("BAR_WLRS_LOG")
         .init();
 
     let (mut app, mut event_queue) = app::App::new();
