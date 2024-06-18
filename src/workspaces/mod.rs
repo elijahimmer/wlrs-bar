@@ -13,8 +13,8 @@ use std::thread::JoinHandle;
 
 pub struct Workspaces<'a> {
     name: Box<str>,
-    desired_height: f32,
-    area: Rect<f32>,
+    desired_height: u32,
+    area: Rect,
     h_align: Align,
     v_align: Align,
     should_resize: bool,
@@ -35,14 +35,14 @@ pub struct Workspaces<'a> {
 impl Workspaces<'_> {
     pub fn new<'a>(
         name: Box<str>,
-        desired_height: f32,
+        desired_height: u32,
         h_align: Align,
         v_align: Align,
     ) -> Result<Workspaces<'a>> {
         log::info!("'{name}' initializing with height: {desired_height}");
 
         let fg = *color::ROSE;
-        let bg = *color::LOVE;
+        let bg = *color::SURFACE;
         let active_fg = *color::ROSE;
         let active_bg = *color::PINE;
 
@@ -50,9 +50,7 @@ impl Workspaces<'_> {
             .fg(fg)
             .bg(bg)
             .h_align(Align::Center)
-            .v_align(Align::Center)
-            //.h_margins(desired_height * 0.25)
-            //.desired_width(100.0)
+            .v_align(Align::Start)
             .desired_text_height(desired_height);
 
         let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
@@ -77,8 +75,8 @@ impl Workspaces<'_> {
             active_fg,
             active_bg,
 
+            active_workspace: 1,
             workspaces: Default::default(),
-            active_workspace: Default::default(),
             area: Default::default(),
             should_resize: false,
         })
@@ -159,11 +157,24 @@ impl Workspaces<'_> {
                                 .text(wk_name.clone())
                                 .build(format!("{} {wk_name}", self.name).into());
                             self.workspaces.insert(idx, (id, wk));
-                        });
+                        })
+                        .map(|_idx| log::info!("'{}' update_workspace :: created already existing workspace id={id}", self.name));
 
                     self.should_resize = true;
                 }
-                WorkerMsg::WorkspaceDestroy(_id) => todo!(),
+                WorkerMsg::WorkspaceDestroy(id) => {
+                    let _ = self
+                        .workspaces
+                        .binary_search_by_key(&id, |w| w.0)
+                        .map(|idx| self.workspaces.remove(idx))
+                        .map_err(|_idx| {
+                            log::warn!(
+                                "'{}' update_workspaces :: destroyed non-existant workspace id={id}",
+                                self.name
+                            )
+                        });
+                    self.should_resize = true;
+                }
             }
         });
 
@@ -193,7 +204,7 @@ impl Widget for Workspaces<'_> {
     fn name(&self) -> &str {
         &self.name
     }
-    fn area(&self) -> Rect<f32> {
+    fn area(&self) -> Rect {
         self.area
     }
     fn h_align(&self) -> Align {
@@ -202,17 +213,17 @@ impl Widget for Workspaces<'_> {
     fn v_align(&self) -> Align {
         self.v_align
     }
-    fn desired_height(&self) -> f32 {
+    fn desired_height(&self) -> u32 {
         self.desired_height
     }
-    fn desired_width(&self, height: f32) -> f32 {
-        height * 12.0
-        //self.workspaces
-        //    .iter()
-        //    .map(|(_idx, w)| w.desired_width(height))
-        //    .sum()
+    fn desired_width(&self, height: u32) -> u32 {
+        self.workspaces
+            .iter()
+            .map(|(_idx, w)| w.desired_width(height))
+            .sum::<u32>()
+            .max(height * 12)
     }
-    fn resize(&mut self, area: Rect<f32>) {
+    fn resize(&mut self, area: Rect) {
         let Point {
             x: _width,
             y: height,
@@ -221,20 +232,29 @@ impl Widget for Workspaces<'_> {
         let mut wk_area = area;
         wk_area.max.x = wk_area.min.x + height;
         self.workspaces.iter_mut().for_each(|(_idx, w)| {
+            log::trace!(
+                "'{}' | resize :: wk_area: {wk_area}, size: {}",
+                self.name,
+                wk_area.size()
+            );
+            debug_assert!(area.contains_rect(wk_area));
+            debug_assert!(wk_area.size() == Point::new(height, height));
+            w.resize(wk_area);
             wk_area.min.x += height;
             wk_area.max.x += height;
-            w.resize(wk_area);
         });
         self.area = area;
     }
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_workspaces()?;
         if self.should_resize {
+            self.area.draw(self.bg, ctx);
             self.resize(self.area);
             self.should_resize = false;
         }
 
         self.workspaces.iter_mut().for_each(|(_idx, w)| {
+            debug_assert!(self.area.contains_rect(w.area()));
             if let Err(err) = w.draw(ctx) {
                 log::warn!(
                     "'{}', widget '{}' failed to draw. error={err}",

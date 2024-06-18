@@ -99,15 +99,15 @@ impl App {
             Align::Center,
         )));
 
-        //match crate::workspaces::Workspaces::new(
-        //    "Workspaces".into(),
-        //    HEIGHT,
-        //    Align::Start,
-        //    Align::Center,
-        //) {
-        //    Ok(w) => widgets.push(Box::new(w)),
-        //    Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
-        //};
+        match crate::workspaces::Workspaces::new(
+            "Workspaces".into(),
+            HEIGHT,
+            Align::Start,
+            Align::Center,
+        ) {
+            Ok(w) => widgets.push(Box::new(w)),
+            Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
+        };
 
         let mut me = Self {
             connection,
@@ -375,6 +375,7 @@ impl App {
         ctx.damage = &mut self.last_damage;
 
         if self.redraw {
+            log::debug!("draw :: full redraw");
             rect.draw(*color::SURFACE, &mut ctx);
             //rect.draw_outline(*color::PINE, &mut ctx);
         }
@@ -388,7 +389,6 @@ impl App {
 
         if self.redraw {
             self.redraw = false;
-            log::debug!("draw :: full redraw");
 
             // Damage the entire window
             surface.damage_buffer(0, 0, self.width as i32, self.height as i32);

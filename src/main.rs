@@ -5,7 +5,7 @@ pub mod utils;
 pub mod widget;
 
 pub mod clock;
-//pub mod workspaces;
+pub mod workspaces;
 
 pub fn main() {
     env_logger::Builder::from_default_env()

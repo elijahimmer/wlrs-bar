@@ -76,8 +76,9 @@ impl Rect {
                 Align::End => (max - size, max),
                 Align::Center => (center - (size / 2), center + (size / 2) + (size % 2)),
                 Align::CenterAt(ratio) => {
+                    debug_assert!((0.0..1.0).contains(&ratio));
                     let up = (size as f32 * (1.0 - ratio)).round() as u32;
-                    if center < up || center - up < min {
+                    if up > center || up > size || center - up < min {
                         (center - (size / 2), center + (size / 2) + (size % 2))
                     } else {
                         (center - up, center + (size - up) + (size % 2))
@@ -124,6 +125,7 @@ impl Rect {
 
     pub fn draw(self, color: crate::color::Color, ctx: &mut DrawCtx) {
         debug_assert!(self.max > self.min);
+        log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
                 ctx.put(Point { x, y }, color);

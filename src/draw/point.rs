@@ -90,21 +90,6 @@ impl Sub<Self> for Point {
     }
 }
 
-//use std::cmp::{Ordering, PartialOrd};
-//impl PartialOrd for Point {
-//    // Required method
-//    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-//        let x_cmp = self.x.cmp(&other.x);
-//        let y_cmp = self.y.cmp(&other.y);
-//
-//        if x_cmp == y_cmp {
-//            Some(x_cmp)
-//        } else {
-//            None
-//        }
-//    }
-//}
-
 use std::fmt::{Display, Error as FmtError, Formatter};
 impl Display for Point {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
