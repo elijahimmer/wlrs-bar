@@ -12,7 +12,9 @@ pub trait Widget {
     fn resize(&mut self, rect: Rect);
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()>;
 
-    fn click(&mut self, button: u32, point: Point) -> Result<()>;
+    fn click(&mut self, button: ClickType, point: Point) -> Result<()>;
+    fn motion(&mut self, point: Point) -> Result<()>;
+    fn motion_leave(&mut self, point: Point) -> Result<()>;
 }
 
 pub trait PositionedWidget {
@@ -31,6 +33,26 @@ pub trait PositionedWidget {
 
     fn margins(&self) -> Point {
         Point::new(self.h_margins(), self.v_margins())
+    }
+}
+
+// TODO: Find a new home for this...
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ClickType {
+    LeftClick,
+    RightClick,
+    MiddleClick,
+    Other,
+}
+
+impl ClickType {
+    pub fn new(button: u32) -> Self {
+        match button {
+            272 => Self::LeftClick,
+            273 => Self::RightClick,
+            274 => Self::MiddleClick,
+            _ => Self::Other,
+        }
     }
 }
 

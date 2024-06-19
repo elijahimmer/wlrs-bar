@@ -21,6 +21,10 @@ pub struct Workspaces<'a> {
     bg: Color,
     active_fg: Color,
     active_bg: Color,
+    hover_fg: Color,
+    hover_bg: Color,
+
+    last_hover: Option<usize>,
 
     worker_handle: Option<JoinHandle<Result<()>>>,
     worker_send: Sender<ManagerMsg>,
@@ -222,13 +226,56 @@ impl Widget for Workspaces<'_> {
         Ok(())
     }
 
-    fn click(&mut self, button: u32, point: Point) -> Result<()> {
-        if button != crate::utils::LEFT_CLICK {
+    fn click(&mut self, button: ClickType, point: Point) -> Result<()> {
+        if button != ClickType::LeftClick {
             return Ok(());
         }
 
         if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
+        }
+
+        Ok(())
+    }
+
+    fn motion(&mut self, point: Point) -> Result<()> {
+        let moved_in_idx = self
+            .workspaces
+            .iter_mut()
+            .enumerate()
+            .find(|(_idx, (_id, w))| w.area().contains(point))
+            .map(|(idx, (_id, w))| {
+                w.set_fg(self.hover_fg);
+                w.set_bg(self.hover_bg);
+
+                idx
+            });
+
+        if self.last_hover != moved_in_idx {
+            if let Some((id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+                if *id == self.active_workspace {
+                    w.set_fg(self.active_fg);
+                    w.set_bg(self.active_bg);
+                } else {
+                    w.set_fg(self.fg);
+                    w.set_bg(self.bg);
+                }
+            }
+        }
+
+        self.last_hover = moved_in_idx;
+
+        Ok(())
+    }
+    fn motion_leave(&mut self, _point: Point) -> Result<()> {
+        if let Some((id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+            if *id == self.active_workspace {
+                w.set_fg(self.active_fg);
+                w.set_bg(self.active_bg);
+            } else {
+                w.set_fg(self.fg);
+                w.set_bg(self.bg);
+            }
         }
 
         Ok(())
@@ -244,6 +291,8 @@ pub struct WorkspacesBuilder {
     bg: Color,
     active_fg: Color,
     active_bg: Color,
+    hover_fg: Color,
+    hover_bg: Color,
 }
 
 impl WorkspacesBuilder {
@@ -254,7 +303,7 @@ impl WorkspacesBuilder {
     crate::builder_fields! {
         u32, desired_height;
         Align, v_align h_align;
-        Color, fg bg active_fg active_bg;
+        Color, fg bg active_fg active_bg hover_fg hover_bg;
     }
 
     pub fn build<'a>(&self, name: &str) -> Result<Workspaces<'a>> {
@@ -295,8 +344,11 @@ impl WorkspacesBuilder {
             bg: self.bg,
             active_fg: self.active_fg,
             active_bg: self.active_bg,
+            hover_fg: self.hover_fg,
+            hover_bg: self.hover_bg,
 
             active_workspace: 1,
+            last_hover: Default::default(),
             workspaces: Default::default(),
             area: Default::default(),
             should_resize: false,

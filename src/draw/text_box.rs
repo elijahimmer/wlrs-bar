@@ -84,13 +84,17 @@ impl<'a> TextBox<'a> {
     }
 
     pub fn set_fg(&mut self, fg: Color) {
-        self.redraw = true;
-        self.fg = fg;
+        if fg != self.fg {
+            self.redraw = true;
+            self.fg = fg;
+        }
     }
 
     pub fn set_bg(&mut self, bg: Color) {
-        self.redraw = true;
-        self.bg = bg;
+        if bg != self.bg {
+            self.redraw = true;
+            self.bg = bg;
+        }
     }
 
     pub fn builder() -> TextBoxBuilder<'a> {
@@ -268,7 +272,14 @@ impl Widget for TextBox<'_> {
         Ok(())
     }
 
-    fn click(&mut self, _button: u32, _point: Point) -> Result<()> {
+    fn click(&mut self, _button: ClickType, _point: Point) -> Result<()> {
+        Ok(())
+    }
+
+    fn motion(&mut self, _point: Point) -> Result<()> {
+        Ok(())
+    }
+    fn motion_leave(&mut self, _point: Point) -> Result<()> {
         Ok(())
     }
 }

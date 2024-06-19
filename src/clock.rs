@@ -1,5 +1,5 @@
 use crate::draw::prelude::*;
-use crate::widget::{center_widgets, Widget};
+use crate::widget::{center_widgets, ClickType, Widget};
 
 use anyhow::Result;
 use chrono::Timelike;
@@ -99,7 +99,14 @@ impl Widget for Clock<'_> {
         Ok(())
     }
 
-    fn click(&mut self, _button: u32, _point: Point) -> Result<()> {
+    fn click(&mut self, _button: ClickType, _point: Point) -> Result<()> {
+        Ok(())
+    }
+
+    fn motion(&mut self, _point: Point) -> Result<()> {
+        Ok(())
+    }
+    fn motion_leave(&mut self, _point: Point) -> Result<()> {
         Ok(())
     }
 }

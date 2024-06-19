@@ -1,5 +1,5 @@
 use super::draw::{color, prelude::*};
-use super::widget::Widget;
+use super::widget::{ClickType, Widget};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -46,6 +46,7 @@ pub struct App {
     default_height: u32,
     redraw: bool,
     widgets: Vec<Box<dyn Widget>>,
+    last_moved_in: Option<usize>,
     last_damage: Vec<Rect>,
 }
 
@@ -94,6 +95,8 @@ impl App {
             .bg(color::SURFACE)
             .active_fg(color::ROSE)
             .active_bg(color::PINE)
+            .hover_fg(color::GOLD)
+            .hover_bg(color::LOVE)
             .build("Workspaces")
         {
             Ok(w) => widgets.push(Box::new(w)),
@@ -126,13 +129,15 @@ impl App {
             seat_state: SeatState::new(&globals, &qh),
             output_state: OutputState::new(&globals, &qh),
 
-            should_exit: false,
             width: args.width,
             height: args.height,
             default_width: args.width,
             default_height: args.height,
+
             redraw: true,
             last_damage: Vec::with_capacity(16),
+            last_moved_in: None,
+            should_exit: false,
         };
 
         event_queue
@@ -313,14 +318,68 @@ impl PointerHandler for App {
                 continue;
             }
             use PointerEventKind as PEK;
+
             match event.kind {
                 PEK::Enter { .. } => {
-                    //log::trace!("pointer_frame :: Pointer entered @{:?}", event.position);
+                    assert!(self.last_moved_in.is_none());
+                    if let Some((idx, w)) = self
+                        .widgets
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_idx, w)| w.area().contains(point))
+                    {
+                        if let Err(err) = w.motion(point) {
+                            log::warn!(
+                                "pointer_frame :: widget '{}' motion failed. error={err}",
+                                w.name()
+                            );
+                        }
+                        self.last_moved_in = Some(idx);
+                    }
                 }
                 PEK::Leave { .. } => {
-                    //log::trace!("pointer_frame :: Pointer left");
+                    if let Some(w) = self.last_moved_in.and_then(|idx| self.widgets.get_mut(idx)) {
+                        log::trace!("pointer_frame :: left widget '{}'", w.name());
+                        if let Err(err) = w.motion_leave(point) {
+                            log::warn!(
+                                "pointer_frame :: widget '{}' motion_leave failed. error={err}",
+                                w.name()
+                            );
+                        }
+                    }
+                    self.last_moved_in = None;
                 }
-                PEK::Motion { .. } => {}
+                PEK::Motion { .. } => {
+                    let moved_in_idx = self
+                        .widgets
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_idx, w)| w.area().contains(point))
+                        .map(|(idx, w)| {
+                            if let Err(err) = w.motion(point) {
+                                log::warn!(
+                                    "pointer_frame :: widget '{}' motion failed. error={err}",
+                                    w.name()
+                                );
+                            }
+                            idx
+                        });
+
+                    if self.last_moved_in != moved_in_idx {
+                        if let Some(w) =
+                            self.last_moved_in.and_then(|idx| self.widgets.get_mut(idx))
+                        {
+                            log::trace!("pointer_frame :: left widget '{}'", w.name());
+                            if let Err(err) = w.motion_leave(point) {
+                                log::warn!(
+                                    "pointer_frame :: widget '{}' motion_leave failed. error={err}",
+                                    w.name()
+                                );
+                            }
+                        }
+                    }
+                    self.last_moved_in = moved_in_idx;
+                }
                 PEK::Press { .. } => {
                     // only care about releasing, not pressing
                     //log::trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
@@ -328,7 +387,7 @@ impl PointerHandler for App {
                 PEK::Release { button, .. } => {
                     if let Some(widget) = self.widgets.iter_mut().find(|w| w.area().contains(point))
                     {
-                        if let Err(err) = widget.click(button, point) {
+                        if let Err(err) = widget.click(ClickType::new(button), point) {
                             log::warn!("click on '{}' failed. error={err}", widget.name());
                         }
                     }

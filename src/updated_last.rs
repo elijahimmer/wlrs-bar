@@ -1,5 +1,5 @@
 use crate::draw::prelude::*;
-use crate::widget::Widget;
+use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -52,7 +52,14 @@ impl Widget for UpdatedLast<'_> {
         }
     }
 
-    fn click(&mut self, _button: u32, _point: Point) -> Result<()> {
+    fn click(&mut self, _button: ClickType, _point: Point) -> Result<()> {
+        Ok(())
+    }
+
+    fn motion(&mut self, _point: Point) -> Result<()> {
+        Ok(())
+    }
+    fn motion_leave(&mut self, _point: Point) -> Result<()> {
         Ok(())
     }
 }
