@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -33,6 +33,23 @@ impl Color {
 impl Default for Color {
     fn default() -> Self {
         FOAM
+    }
+}
+
+macro_rules! display_name {
+    ($fmt:ident, $self:expr, $($other:ident)+) => {
+        $(if ($self == $other) {
+            return write!($fmt, stringify!($other));
+        })*
+    }
+}
+
+use std::fmt::{Display, Error as DisplayError, Formatter};
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), DisplayError> {
+        display_name!(f, *self, BASE SURFACE OVERLAY MUTED SUBTLE TEXT LOVE GOLD ROSE PINE FOAM IRIS H_LOW H_MED H_HIGH);
+
+        write!(f, "({:x} {:x} {:x} {:x})", self.r, self.g, self.b, self.a)
     }
 }
 
