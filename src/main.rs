@@ -16,9 +16,12 @@ pub struct Args {
     /// The timestamp of the last update
     #[arg(short, long)]
     updated_last: Option<i64>,
+
+    /// how heigh the bar should be
     #[arg(long, default_value_t = 28)]
     height: u32,
 
+    /// how wide the bar should be (0 for full screen width)
     #[arg(long, default_value_t = 0)]
     width: u32,
 }

@@ -32,58 +32,9 @@ pub struct Workspaces<'a> {
 }
 
 impl Workspaces<'_> {
-    pub fn new<'a>(
-        name: &str,
-        desired_height: u32,
-        h_align: Align,
-        v_align: Align,
-    ) -> Result<Workspaces<'a>> {
-        log::info!("'{name}' | new :: initializing with height: {desired_height}");
-
-        let fg = color::ROSE;
-        let bg = color::SURFACE;
-        let active_fg = color::ROSE;
-        let active_bg = color::PINE;
-
-        let workspace_builder = TextBox::builder()
-            .fg(fg)
-            .bg(bg)
-            .h_align(Align::Center)
-            .v_align(Align::Center)
-            .desired_text_height(desired_height * 20 / 23);
-
-        let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
-        let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
-
-        let wrk_name = name.to_owned();
-        let worker_handle = Some(
-            std::thread::Builder::new()
-                .name(name.to_owned())
-                .stack_size(32 * 1024)
-                .spawn(move || work(&wrk_name, other_recv, other_send))?,
-        );
-
-        Ok(Workspaces {
-            name: name.into(),
-            h_align,
-            v_align,
-            desired_height,
-            workspace_builder,
-            worker_handle,
-            worker_send,
-            worker_recv,
-            fg,
-            bg,
-            active_fg,
-            active_bg,
-
-            active_workspace: 1,
-            workspaces: Default::default(),
-            area: Default::default(),
-            should_resize: false,
-        })
+    pub fn builder() -> WorkspacesBuilder {
+        Default::default()
     }
-
     /// returns the first workspace that should be redrawn
     fn update_workspaces(&mut self) -> Result<()> {
         if self.worker_handle.is_none()
@@ -269,5 +220,74 @@ impl Widget for Workspaces<'_> {
 
         ctx.full_redraw = redraw;
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct WorkspacesBuilder {
+    desired_height: u32,
+    h_align: Align,
+    v_align: Align,
+    fg: Color,
+    bg: Color,
+    active_fg: Color,
+    active_bg: Color,
+}
+
+impl WorkspacesBuilder {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    crate::builder_fields! {
+        u32, desired_height;
+        Align, v_align h_align;
+        Color, fg bg active_fg active_bg;
+    }
+
+    pub fn build<'a>(&self, name: &str) -> Result<Workspaces<'a>> {
+        log::info!(
+            "'{name}' | Initializing with height: {}",
+            self.desired_height
+        );
+
+        let workspace_builder = TextBox::builder()
+            .fg(self.fg)
+            .bg(self.bg)
+            .h_align(Align::Center)
+            .v_align(Align::Center)
+            .desired_text_height(self.desired_height * 20 / 23);
+
+        let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
+        let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
+
+        let wrk_name = name.to_owned();
+        let worker_handle = Some(
+            std::thread::Builder::new()
+                .name(name.to_owned())
+                .stack_size(32 * 1024)
+                .spawn(move || work(&wrk_name, other_recv, other_send))?,
+        );
+
+        Ok(Workspaces {
+            workspace_builder,
+            worker_handle,
+            worker_send,
+            worker_recv,
+
+            name: name.into(),
+            h_align: self.h_align,
+            v_align: self.v_align,
+            desired_height: self.desired_height,
+            fg: self.fg,
+            bg: self.bg,
+            active_fg: self.active_fg,
+            active_bg: self.active_bg,
+
+            active_workspace: 1,
+            workspaces: Default::default(),
+            area: Default::default(),
+            should_resize: false,
+        })
     }
 }

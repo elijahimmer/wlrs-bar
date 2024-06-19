@@ -27,9 +27,9 @@ use wayland_client::{
 };
 
 pub struct App {
-    connection: Connection,
-    compositor: CompositorState,
-    layer_shell: LayerShell,
+    //connection: Connection,
+    //compositor: CompositorState,
+    //layer_shell: LayerShell,
     layer_surface: LayerSurface,
     pointer: Option<wl_pointer::WlPointer>,
 
@@ -87,12 +87,15 @@ impl App {
                 .build("Clock"),
         ));
 
-        match crate::workspaces::Workspaces::new(
-            "Workspaces",
-            args.height,
-            Align::Start,
-            Align::Center,
-        ) {
+        match crate::workspaces::Workspaces::builder()
+            .desired_height(args.height)
+            .h_align(Align::Start)
+            .fg(color::ROSE)
+            .bg(color::SURFACE)
+            .active_fg(color::ROSE)
+            .active_bg(color::PINE)
+            .build("Workspaces")
+        {
             Ok(w) => widgets.push(Box::new(w)),
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
@@ -110,9 +113,9 @@ impl App {
         }
 
         let mut me = Self {
-            connection,
-            compositor,
-            layer_shell,
+            //connection,
+            //compositor,
+            //layer_shell,
             layer_surface,
             widgets,
             pointer: None,
