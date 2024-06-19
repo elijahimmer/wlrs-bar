@@ -87,8 +87,12 @@ impl App {
                 .build("Clock"),
         ));
 
-        match crate::workspaces::Workspaces::new("Workspaces", args.height, Align::Start, Align::Center)
-        {
+        match crate::workspaces::Workspaces::new(
+            "Workspaces",
+            args.height,
+            Align::Start,
+            Align::Center,
+        ) {
             Ok(w) => widgets.push(Box::new(w)),
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
