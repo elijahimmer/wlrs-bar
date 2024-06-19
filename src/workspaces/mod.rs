@@ -222,7 +222,11 @@ impl Widget for Workspaces<'_> {
         Ok(())
     }
 
-    fn click(&mut self, _button: u32, point: Point) -> Result<()> {
+    fn click(&mut self, button: u32, point: Point) -> Result<()> {
+        if button != crate::utils::LEFT_CLICK {
+            return Ok(());
+        }
+
         if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
         }
