@@ -32,7 +32,7 @@ impl Color {
 
 impl Default for Color {
     fn default() -> Self {
-        FOAM
+        FOAM // the default so you can easily see it's not set :)
     }
 }
 

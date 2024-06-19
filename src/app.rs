@@ -79,14 +79,14 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        //widgets.push(Box::new(
-        //    crate::clock::Clock::builder()
-        //        .number_fg(color::ROSE)
-        //        .spacer_fg(color::PINE)
-        //        .bg(color::SURFACE)
-        //        .desired_height(args.height)
-        //        .build("Clock"),
-        //));
+        widgets.push(Box::new(
+            crate::clock::Clock::builder()
+                .number_fg(color::ROSE)
+                .spacer_fg(color::PINE)
+                .bg(color::SURFACE)
+                .desired_height(args.height)
+                .build("Clock"),
+        ));
 
         match crate::workspaces::Workspaces::builder()
             .desired_height(args.height)
