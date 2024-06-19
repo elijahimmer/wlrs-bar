@@ -16,6 +16,11 @@ pub struct Args {
     /// The timestamp of the last update
     #[arg(short, long)]
     updated_last: Option<i64>,
+    #[arg(short, long, default_value_t = 28)]
+    height: u32,
+
+    #[arg(short, long, default_value_t = 0)]
+    width: u32,
 }
 
 pub fn main() {

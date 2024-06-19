@@ -26,28 +26,27 @@ use wayland_client::{
     Connection, EventQueue, QueueHandle,
 };
 
-pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 28;
-
 pub struct App {
-    pub connection: Connection,
-    pub compositor: CompositorState,
-    pub layer_shell: LayerShell,
-    pub layer_surface: LayerSurface,
-    pub pointer: Option<wl_pointer::WlPointer>,
+    connection: Connection,
+    compositor: CompositorState,
+    layer_shell: LayerShell,
+    layer_surface: LayerSurface,
+    pointer: Option<wl_pointer::WlPointer>,
 
-    pub shm_state: Shm,
-    pub pool: SlotPool,
-    pub registry_state: RegistryState,
-    pub seat_state: SeatState,
-    pub output_state: OutputState,
+    shm_state: Shm,
+    pool: SlotPool,
+    registry_state: RegistryState,
+    seat_state: SeatState,
+    output_state: OutputState,
 
     pub should_exit: bool,
-    pub width: u32,
-    pub height: u32,
-    pub redraw: bool,
-    pub widgets: Vec<Box<dyn Widget>>,
-    pub last_damage: Vec<Rect>,
+    width: u32,
+    height: u32,
+    default_width: u32,
+    default_height: u32,
+    redraw: bool,
+    widgets: Vec<Box<dyn Widget>>,
+    last_damage: Vec<Rect>,
 }
 
 impl App {
@@ -67,14 +66,14 @@ impl App {
             layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("bar-wlrs"), None);
 
         layer_surface.set_anchor(Anchor::BOTTOM.complement()); // anchor to all sides but the bottom
-        layer_surface.set_size(WIDTH, HEIGHT);
-        layer_surface.set_exclusive_zone(HEIGHT as i32);
+        layer_surface.set_size(args.width, args.height);
+        layer_surface.set_exclusive_zone(args.height as i32);
         layer_surface.commit();
 
         let shm_state = Shm::bind(&globals, &qh).expect("wl_shm not available");
 
         let pool =
-            SlotPool::new(4000 * HEIGHT as usize, &shm_state).expect("Failed to create pool");
+            SlotPool::new(4000 * args.height as usize, &shm_state).expect("Failed to create pool");
         //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
@@ -84,11 +83,11 @@ impl App {
                 .number_fg(color::ROSE)
                 .spacer_fg(color::PINE)
                 .bg(color::SURFACE)
-                .desired_height(HEIGHT)
+                .desired_height(args.height)
                 .build("Clock"),
         ));
 
-        match crate::workspaces::Workspaces::new("Workspaces", HEIGHT, Align::Start, Align::Center)
+        match crate::workspaces::Workspaces::new("Workspaces", args.height, Align::Start, Align::Center)
         {
             Ok(w) => widgets.push(Box::new(w)),
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
@@ -101,7 +100,7 @@ impl App {
                     .h_align(Align::End)
                     .fg(color::ROSE)
                     .bg(color::SURFACE)
-                    .desired_height(HEIGHT)
+                    .desired_height(args.height)
                     .build("Updated Last"),
             ))
         }
@@ -121,8 +120,10 @@ impl App {
             output_state: OutputState::new(&globals, &qh),
 
             should_exit: false,
-            width: WIDTH,
-            height: HEIGHT,
+            width: args.width,
+            height: args.height,
+            default_width: args.width,
+            default_height: args.height,
             redraw: true,
             last_damage: Vec::with_capacity(16),
         };
@@ -211,8 +212,8 @@ impl LayerShellHandler for App {
         _serial: u32,
     ) {
         if configure.new_size.0 == 0 || configure.new_size.1 == 0 {
-            self.width = 1000; // reasonable default since the requested width would be 0 otherwise
-            self.height = HEIGHT;
+            self.width = self.default_width; // let's hope this never recurses endlessly
+            self.height = self.default_height;
         } else {
             log::debug!(
                 "configure :: new size requested ({}, {})",
@@ -422,7 +423,7 @@ impl App {
 
         // hack to test all sizes above your own (until it hits some limit)
         //log::info!("draw :: height: {}", self.height);
-        //self.layer_surface.set_size(WIDTH, self.height + 1);
+        //self.layer_surface.set_size(self.default_width, self.height + 1);
         //self.layer_surface
         //    .set_exclusive_zone(self.height as i32 + 1);
         //self.layer_surface.commit();
