@@ -24,6 +24,7 @@ impl Clock<'_> {
     }
     fn update_time(&mut self) {
         let time = chrono::Local::now();
+
         self.__hours.set_text(&format2digits(time.hour() as u8));
         self.minutes.set_text(&format2digits(time.minute() as u8));
         self.seconds.set_text(&format2digits(time.second() as u8));

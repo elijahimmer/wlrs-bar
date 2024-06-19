@@ -9,7 +9,7 @@ pub mod workspaces;
 
 use clap::Parser;
 
-/// Simple program to greet a person
+/// A Hyprland Status Bar for me :)
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {

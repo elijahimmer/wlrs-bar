@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 64;
+pub const HEIGHT: u32 = 28;
 
 pub struct App {
     pub connection: Connection,
@@ -354,33 +354,43 @@ impl App {
 
         let surface = self.layer_surface.wl_surface();
 
+        if cfg!(feature = "damage") {
+            let mut ctx = crate::draw::DrawCtx {
+                damage: &mut Vec::new(),
+                buffer: &buffer,
+                canvas,
+                rect,
+                full_redraw: self.redraw,
+            };
+
+            for dam in self.last_damage.iter() {
+                dam.draw_outline(color::SURFACE, &mut ctx);
+                dam.damage_outline(surface.clone());
+            }
+            debug_assert!(ctx.damage.is_empty());
+            ctx.damage = &mut self.last_damage;
+        }
+
         let mut ctx = crate::draw::DrawCtx {
-            damage: &mut Vec::new(),
+            damage: &mut self.last_damage,
             buffer: &buffer,
             canvas,
             rect,
             full_redraw: self.redraw,
         };
 
-        for dam in self.last_damage.iter() {
-            dam.draw_outline(color::SURFACE, &mut ctx);
-            dam.damage_outline(surface.clone());
-        }
-        debug_assert!(ctx.damage.is_empty());
-
-        self.last_damage.clear();
-        ctx.damage = &mut self.last_damage;
+        ctx.damage.clear();
 
         if self.redraw {
             log::debug!("draw :: full redraw");
             rect.draw(color::SURFACE, &mut ctx);
-            //rect.draw_outline(color::PINE, &mut ctx);
         }
 
         for w in self.widgets.iter_mut() {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("draw :: widget failed to draw: error={err}");
             }
+            #[cfg(feature = "debug")]
             w.area().draw_outline(color::PINE, &mut ctx);
         }
 
@@ -400,6 +410,7 @@ impl App {
                     dam.max.y as i32,
                 );
 
+                #[cfg(feature = "damage")]
                 dam.draw_outline(color::LOVE, &mut ctx);
             }
         }

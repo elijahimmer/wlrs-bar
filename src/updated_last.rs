@@ -56,34 +56,34 @@ impl Widget for UpdatedLast<'_> {
 const MAX_LABEL_LEN: u32 = "59 Minutes Ago".len() as u32;
 fn label_from_time(delta_time: TimeDelta) -> String {
     if delta_time.num_seconds() < 0 {
-        return "The Future?".to_string();
+        return "The Future?".into();
     }
 
     let days = delta_time.num_days();
     if days > 14 {
-        return "UPDATE NOW!".to_string();
+        return "UPDATE NOW!".into();
     }
     match days.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Day Ago".to_string(),
+        core::cmp::Ordering::Equal => return "1 Day Ago".into(),
         core::cmp::Ordering::Greater => return format!("{days} Days Ago"),
         core::cmp::Ordering::Less => {}
     }
 
     let hours = delta_time.num_hours();
     match hours.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Hour Ago".to_string(),
+        core::cmp::Ordering::Equal => return "1 Hour Ago".into(),
         core::cmp::Ordering::Greater => return format!("{hours} Hours Ago"),
         core::cmp::Ordering::Less => {}
     }
 
     let minutes = delta_time.num_minutes();
     match minutes.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Minute Ago".to_string(),
+        core::cmp::Ordering::Equal => return "1 Minute Ago".into(),
         core::cmp::Ordering::Greater => return format!("{minutes} Minutes Ago"),
         core::cmp::Ordering::Less => {}
     }
 
-    "Now".to_string()
+    "Now".into()
 }
 
 #[derive(Clone, Debug, Default)]
@@ -119,7 +119,7 @@ impl UpdatedLastBuilder {
         let text = TextBox::builder()
             .v_align(self.v_align)
             .h_align(self.h_align)
-            .h_margins(self.desired_height.unwrap_or(0) / 2)
+            .right_margin(self.desired_height.unwrap_or(0) / 5)
             .fg(self.fg)
             .bg(self.bg)
             .text("Default Text")

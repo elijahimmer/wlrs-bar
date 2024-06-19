@@ -11,16 +11,26 @@ impl Point {
         Self { x, y }
     }
 
-    pub fn extend_to(self, other: Self) -> Rect {
-        Rect::new(self, other)
+    pub fn extend_to(self, other: impl Into<Self>) -> Rect {
+        Rect::new(self, other.into())
     }
 
-    pub fn smallest(self, other: Self) -> Self {
+    pub fn smallest(self, other: impl Into<Self>) -> Self {
+        let other = other.into();
         Self::new(self.x.min(other.x), self.y.min(other.y))
     }
 
-    pub fn largest(self, other: Self) -> Self {
+    pub fn largest(self, other: impl Into<Self>) -> Self {
+        let other = other.into();
         Self::new(self.x.max(other.x), self.y.max(other.y))
+    }
+
+    pub fn x_shift(self, offset: i32) -> Self {
+        Self::new((self.x as i32 + offset) as u32, self.y)
+    }
+
+    pub fn y_shift(self, offset: i32) -> Self {
+        Self::new(self.x, (self.y as i32 + offset) as u32)
     }
 }
 
@@ -75,6 +85,14 @@ impl Add<Self> for Point {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
+    }
+}
+
+use std::ops::AddAssign;
+impl AddAssign<Self> for Point {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
     }
 }
 

@@ -26,6 +26,16 @@ pub trait PositionedWidget {
     fn h_margins(&self) -> u32 {
         self.left_margin() + self.right_margin()
     }
+
+    fn margins(&self) -> Point {
+        Point::new(self.h_margins(), self.v_margins())
+    }
+}
+
+pub trait Builder {
+    type Widget;
+    fn new() -> Self;
+    fn build(&self, name: &str) -> Self::Widget;
 }
 
 // places widgets from the center propagating out,

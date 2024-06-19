@@ -15,7 +15,8 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn new(a: Point, b: Point) -> Self {
+    pub fn new(a: impl Into<Point>, b: impl Into<Point>) -> Self {
+        let (a, b) = (a.into(), b.into());
         let (min_x, max_x) = cmp(a.x, b.x);
         let (min_y, max_y) = cmp(a.y, b.y);
         debug_assert!(min_x < max_x);
@@ -50,7 +51,8 @@ impl Rect {
         }
     }
 
-    pub fn largest(self, other: Self) -> Self {
+    pub fn largest(self, other: impl Into<Self>) -> Self {
+        let other = other.into();
         debug_assert!(self.max > self.min);
         Self {
             min: self.min.smallest(other.min),
@@ -58,9 +60,26 @@ impl Rect {
         }
     }
 
-    pub fn smallest(self, other: Self) -> Self {
+    pub fn smallest(self, other: impl Into<Self>) -> Self {
+        let other = other.into();
         debug_assert!(self.max > self.min);
         Self::new(self.min.largest(other.min), self.max.smallest(other.max))
+    }
+
+    pub fn x_shift(self, x_offset: i32) -> Self {
+        debug_assert!(self.max > self.min);
+        Self {
+            min: self.min.x_shift(x_offset),
+            max: self.max.x_shift(x_offset),
+        }
+    }
+
+    pub fn y_shift(self, y_offset: i32) -> Self {
+        debug_assert!(self.max > self.min);
+        Self {
+            min: self.min.y_shift(y_offset),
+            max: self.max.y_shift(y_offset),
+        }
     }
 
     pub fn place_at(self, size: Point, h_align: Align, v_align: Align) -> Self {
@@ -109,12 +128,14 @@ impl Rect {
         Self { min, max }
     }
 
-    pub fn contains(self, p: Point) -> bool {
+    pub fn contains(self, p: impl Into<Point>) -> bool {
+        let p = p.into();
         debug_assert!(self.max > self.min);
         (self.min.x..=self.max.x).contains(&p.x) && (self.min.y..=self.max.y).contains(&p.y)
     }
 
-    pub fn contains_rect(self, r: Self) -> bool {
+    pub fn contains_rect(self, r: impl Into<Self>) -> bool {
+        let r = r.into();
         debug_assert!(self.max > self.min);
         self.min.x <= r.min.x
             && self.min.y <= r.min.y
@@ -161,7 +182,27 @@ impl Rect {
 
 impl From<rusttype::Rect<i32>> for Rect {
     fn from(val: rusttype::Rect<i32>) -> Self {
-        Self::new(val.min.into(), val.max.into())
+        Self::new(val.min, val.max)
+    }
+}
+
+use std::ops::Add;
+impl Add<Self> for Rect {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            min: self.min + rhs.min,
+            max: self.max + rhs.max,
+        }
+    }
+}
+
+use std::ops::AddAssign;
+impl AddAssign<Self> for Rect {
+    fn add_assign(&mut self, rhs: Self) {
+        self.min += rhs.min;
+        self.max += rhs.max;
     }
 }
 

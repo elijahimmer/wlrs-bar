@@ -84,22 +84,18 @@ impl Workspaces<'_> {
         })
     }
 
+    /// returns the first workspace that should be redrawn
     fn update_workspaces(&mut self) -> Result<()> {
         if self.worker_handle.is_none()
             || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
         {
-            let _ = self
-                .worker_handle
-                .take()
-                .map(|w| w.join())
-                .transpose()
-                .map_err(|err| {
-                    log::error!(
-                        "'{}', workspaces worker thread panicked. error={err:?}",
-                        self.name
-                    )
-                })
-                .map(|_| log::warn!("'{}', workspaces worker returned too soon", self.name));
+            match self.worker_handle.take().map(|w| w.join()).transpose() {
+                Ok(_) => log::warn!("'{}', workspaces worker returned too soon", self.name),
+                Err(err) => log::error!(
+                    "'{}', workspaces worker thread panicked. error={err:?}",
+                    self.name
+                ),
+            }
 
             let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
             let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
@@ -120,33 +116,37 @@ impl Workspaces<'_> {
                     self.should_resize = true;
                 }
                 WorkerMsg::WorkspaceSetActive(id) => {
-                    let _ = self
+                    match self
                         .workspaces
                         .binary_search_by_key(&self.active_workspace, |w| w.0)
-                        .map(|idx| {
-                            self.workspaces.get_mut(idx).map(|(_id, w)| {
-                                // workspace exists
+                    {
+                        Ok(idx) => {
+                            if let Some((_id, w)) = self.workspaces.get_mut(idx) {
                                 w.set_fg(self.fg);
                                 w.set_bg(self.bg);
-                            })
-                        });
+                            }
+                        }
+                        Err(_err) => log::warn!(
+                            "'{}' update_workspaces :: previously active workspace doesn't exist",
+                            self.name
+                        ),
+                    }
                     self.active_workspace = id;
-                    let _ = self
-                        .workspaces
-                        .binary_search_by_key(&id, |w| w.0)
-                        .map(|idx| {
-                            self.workspaces.get_mut(idx).map(|(_id, w)| {
-                                // workspace exists
-                                w.set_fg(self.active_fg);
-                                w.set_bg(self.active_bg);
-                            })
-                        });
+                    // set colors if found, if not it will be created later
+                    if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
+                        if let Some((_id, w)) = self.workspaces.get_mut(idx) {
+                            w.set_fg(self.active_fg);
+                            w.set_bg(self.active_bg);
+                        }
+                    }
                 }
                 WorkerMsg::WorkspaceCreate(id) => {
-                    let _ = self
-                        .workspaces
-                        .binary_search_by_key(&id, |w| w.0)
-                        .map_err(|idx| {
+                    match self.workspaces.binary_search_by_key(&id, |w| w.0) {
+                        Ok(_idx) => log::info!(
+                            "'{}' update_workspace :: created already existing workspace id={id}",
+                            self.name
+                        ),
+                        Err(idx) => {
                             let wk_name = utils::map_workspace_id(id);
 
                             let mut builder = self.workspace_builder.clone();
@@ -159,22 +159,21 @@ impl Workspaces<'_> {
                                 .text(wk_name.as_str())
                                 .build(&format!("{} {wk_name}", self.name));
                             self.workspaces.insert(idx, (id, wk));
-                        })
-                        .map(|_idx| log::info!("'{}' update_workspace :: created already existing workspace id={id}", self.name));
+                        }
+                    }
 
                     self.should_resize = true;
                 }
                 WorkerMsg::WorkspaceDestroy(id) => {
-                    let _ = self
-                        .workspaces
-                        .binary_search_by_key(&id, |w| w.0)
-                        .map(|idx| self.workspaces.remove(idx))
-                        .map_err(|_idx| {
-                            log::warn!(
-                                "'{}' update_workspaces :: destroyed non-existant workspace id={id}",
-                                self.name
-                            )
-                        });
+                    match self.workspaces.binary_search_by_key(&id, |w| w.0) {
+                        Ok(idx) => {
+                            self.workspaces.remove(idx);
+                        }
+                        Err(_idx) => log::warn!(
+                            "'{}' update_workspaces :: destroyed non-existant workspace id={id}",
+                            self.name
+                        ),
+                    }
                     self.should_resize = true;
                 }
             }
@@ -223,7 +222,7 @@ impl Widget for Workspaces<'_> {
             .iter()
             .map(|(_idx, w)| w.desired_width(height))
             .sum::<u32>()
-            .max(height * 12)
+            .max(height * 12) // gives about the right size for any text
     }
     fn resize(&mut self, area: Rect) {
         let Point {
@@ -233,7 +232,7 @@ impl Widget for Workspaces<'_> {
 
         let mut wk_area = area;
         wk_area.max.x = wk_area.min.x + height;
-        self.workspaces.iter_mut().for_each(|(_idx, w)| {
+        for (_idx, ref mut w) in &mut self.workspaces {
             log::trace!(
                 "'{}' | resize :: wk_area: {wk_area}, size: {}",
                 self.name,
@@ -242,9 +241,8 @@ impl Widget for Workspaces<'_> {
             debug_assert!(area.contains_rect(wk_area));
             debug_assert!(wk_area.size() == Point::new(height, height));
             w.resize(wk_area);
-            wk_area.min.x += height;
-            wk_area.max.x += height;
-        });
+            wk_area = wk_area.x_shift(height as i32);
+        }
         self.area = area;
     }
 
