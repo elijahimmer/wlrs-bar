@@ -252,6 +252,7 @@ impl LayerShellHandler for App {
             w.resize(area);
         }
 
+        self.redraw = true;
         self.draw(qh);
     }
 }
