@@ -66,7 +66,7 @@ impl<'a> TextBox<'a> {
     pub fn set_text(&mut self, new_text: &str) {
         let new_text = new_text.trim();
         if new_text.is_empty() {
-            #[cfg(feature = "textbox-debug")]
+            //#[cfg(feature = "debug-textbox")]
             log::debug!("'{}' set_text :: text set is empty", self.name);
             self.glyphs_size = None;
             self.glyphs = None;
@@ -138,7 +138,7 @@ impl Widget for TextBox<'_> {
         }
 
         if self.text.is_empty() || height == 0 {
-            #[cfg(feature = "textbox-debug")]
+            #[cfg(feature = "debug-textbox")]
             log::debug!("'{}' | desired_width :: nothing to display", self.name);
             return 0;
         }
@@ -152,11 +152,11 @@ impl Widget for TextBox<'_> {
 
     fn resize(&mut self, rect: Rect) {
         if rect == self.area && !self.rerender_text {
-            #[cfg(feature = "textbox-debug")]
+            #[cfg(feature = "debug-textbox-resize")]
             log::warn!("'{}' | resize :: resized for no reason", self.name);
             return;
         }
-        #[cfg(feature = "textbox-debug")]
+        #[cfg(feature = "debug-textbox-resize")]
         log::trace!("'{}' | resize :: rect: {rect}", self.name);
         self.redraw = true;
         self.rerender_text = false;
@@ -177,7 +177,7 @@ impl Widget for TextBox<'_> {
         let (glyphs, width_used) = render_glyphs(self.font, &self.text, self.scale);
 
         if width_used <= width_max {
-            #[cfg(feature = "textbox-debug")]
+            #[cfg(feature = "debug-textbox-resize")]
             log::debug!("'{}' | resize :: using desired scale", self.name);
             self.glyphs_size = Some(Point::new(width_used, height_used));
             self.glyphs = Some(glyphs);
@@ -187,7 +187,7 @@ impl Widget for TextBox<'_> {
 
             let height_used_new = (height_used as f32 * ratio).round() as u32;
             let scale_new = Scale::uniform(height_used_new as f32);
-            #[cfg(feature = "textbox-debug")]
+            #[cfg(feature = "debug-textbox-resize")]
             log::debug!(
                 "'{}' resize :: scale down by {ratio} from {:?} to {:?}",
                 self.name,
@@ -213,7 +213,7 @@ impl Widget for TextBox<'_> {
 
         if self.rerender_text {
             // TODO: Optimize so you only re-render what has changed, if applicable
-            #[cfg(feature = "textbox-debug")]
+            #[cfg(feature = "debug-textbox-draw")]
             log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             if width > self.area.width() {
@@ -237,8 +237,12 @@ impl Widget for TextBox<'_> {
         let area_used = text_area.place_at(glyphs_size, self.h_align, self.v_align);
 
         if redraw_full {
-            #[cfg(feature = "textbox-debug")]
-            log::debug!("'{}' | draw :: redrawing fully", self.name);
+            //#[cfg(feature = "debug-textbox-draw")]
+            log::debug!(
+                "'{}' | draw :: redrawing fully, at {}",
+                self.name,
+                self.area
+            );
             self.area.draw(self.bg_drawn, ctx);
         }
 
@@ -268,7 +272,7 @@ impl Widget for TextBox<'_> {
                 });
             });
 
-        if cfg!(feature = "textbox-debug") {
+        if cfg!(feature = "debug-textbox-draw") {
             self.area.draw_outline(color::PINE, ctx);
             area_used.draw_outline(color::GOLD, ctx);
             text_area.draw_outline(color::LOVE, ctx);
@@ -289,6 +293,7 @@ impl Widget for TextBox<'_> {
     }
 
     fn motion(&mut self, point: Point) -> Result<()> {
+        //log::debug!("'{}' | motion :: Point: {point}", self.name);
         debug_assert!(self.area.contains(point));
 
         if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
@@ -304,7 +309,9 @@ impl Widget for TextBox<'_> {
         Ok(())
     }
 
-    fn motion_leave(&mut self, _point: Point) -> Result<()> {
+    fn motion_leave(&mut self, point: Point) -> Result<()> {
+        log::debug!("'{}' | motion_leave :: Point: {point}", self.name);
+
         if self.fg != self.fg_drawn {
             self.redraw = true;
             self.fg_drawn = self.fg;

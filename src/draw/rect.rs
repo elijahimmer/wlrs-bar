@@ -83,7 +83,8 @@ impl Rect {
     }
 
     pub fn place_at(self, size: Point, h_align: Align, v_align: Align) -> Self {
-        //log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
+        #[cfg(feature = "debug-rect-place-at")]
+        log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
         debug_assert!(self.max >= self.min);
         debug_assert!(self.max.x >= self.min.x + size.x);
         debug_assert!(self.max.y >= self.min.y + size.y);
@@ -105,10 +106,11 @@ impl Rect {
                 }
             };
 
-            //log::trace!(
-            //    "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
-            //    max_res - min_res,
-            //);
+            #[cfg(feature = "debug-rect-place-at")]
+            log::trace!(
+                "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
+                max_res - min_res,
+            );
             debug_assert!(min_res <= max_res);
             debug_assert!(max_res - min_res == size);
 
@@ -124,7 +126,8 @@ impl Rect {
         debug_assert!(self.contains(min));
         debug_assert!(self.contains(max));
 
-        //log::trace!("place_at :: result: {min} -> {max}");
+        #[cfg(feature = "debug-rect-place-at")]
+        log::trace!("place_at :: result: {min} -> {max}");
         Self { min, max }
     }
 
@@ -145,7 +148,8 @@ impl Rect {
 
     pub fn draw(self, color: Color, ctx: &mut DrawCtx) {
         debug_assert!(self.max >= self.min);
-        //log::debug!("draw :: self: {self}");
+        #[cfg(feature = "debug-rect-draw")]
+        log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
                 ctx.put(Point { x, y }, color);

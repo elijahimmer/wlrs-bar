@@ -79,14 +79,14 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        widgets.push(Box::new(
-            crate::clock::Clock::builder()
-                .number_fg(color::ROSE)
-                .spacer_fg(color::PINE)
-                .bg(color::SURFACE)
-                .desired_height(args.height)
-                .build("Clock"),
-        ));
+        //widgets.push(Box::new(
+        //    crate::clock::Clock::builder()
+        //        .number_fg(color::ROSE)
+        //        .spacer_fg(color::PINE)
+        //        .bg(color::SURFACE)
+        //        .desired_height(args.height)
+        //        .build("Clock"),
+        //));
 
         match crate::workspaces::Workspaces::builder()
             .desired_height(args.height)
@@ -439,8 +439,6 @@ impl App {
                 dam.draw_outline(color::SURFACE, &mut ctx);
                 dam.damage_outline(surface.clone());
             }
-            debug_assert!(ctx.damage.is_empty());
-            ctx.damage = &mut self.last_damage;
         }
 
         let mut ctx = crate::draw::DrawCtx {

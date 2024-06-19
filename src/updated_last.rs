@@ -121,7 +121,7 @@ impl UpdatedLastBuilder {
 
     pub fn build<'a>(&self, name: &str) -> UpdatedLast<'a> {
         log::info!(
-            "'{name}' | Initializing with height: {}",
+            "'{name}' :: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
         let time = chrono::DateTime::from_timestamp(self.time_stamp, 0)

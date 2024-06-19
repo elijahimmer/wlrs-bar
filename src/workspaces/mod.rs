@@ -37,7 +37,7 @@ impl Workspaces<'_> {
     pub fn builder() -> WorkspacesBuilder {
         Default::default()
     }
-    /// returns the first workspace that should be redrawn
+
     fn update_workspaces(&mut self) -> Result<()> {
         if self.worker_handle.is_none()
             || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
@@ -62,70 +62,54 @@ impl Workspaces<'_> {
         }
 
         self.worker_recv.try_iter().for_each(|m| {
-            log::trace!("'{}', got msg: '{m:?}'", self.name);
+            log::trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.name);
             match m {
                 WorkerMsg::WorkspaceReset => {
                     self.workspaces.clear();
                     self.should_resize = true;
                 }
                 WorkerMsg::WorkspaceSetActive(id) => {
-                    match self
+                    if let Some((_id, w)) = self
                         .workspaces
                         .binary_search_by_key(&self.active_workspace, |w| w.0)
+                        .ok()
+                        .and_then(|idx| self.workspaces.get_mut(idx))
                     {
-                        Ok(idx) => {
-                            if let Some((_id, w)) = self.workspaces.get_mut(idx) {
-                                w.set_fg(self.fg);
-                                w.set_bg(self.bg);
-                            }
-                        }
-                        Err(_err) => log::warn!(
-                            "'{}' update_workspaces :: previously active workspace doesn't exist",
-                            self.name
-                        ),
+                        w.set_fg(self.fg);
+                        w.set_bg(self.bg);
                     }
                     self.active_workspace = id;
-                    // set colors if found, if not it will be created later
-                    if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
-                        if let Some((_id, w)) = self.workspaces.get_mut(idx) {
-                            w.set_fg(self.active_fg);
-                            w.set_bg(self.active_bg);
-                        }
+                    if let Some((_id, w)) = self
+                        .workspaces
+                        .binary_search_by_key(&id, |w| w.0)
+                        .ok()
+                        .and_then(|idx| self.workspaces.get_mut(idx))
+                    {
+                        w.set_fg(self.active_fg);
+                        w.set_bg(self.active_bg);
                     }
                 }
                 WorkerMsg::WorkspaceCreate(id) => {
-                    match self.workspaces.binary_search_by_key(&id, |w| w.0) {
-                        Ok(_idx) => log::info!(
-                            "'{}' update_workspace :: created already existing workspace id={id}",
-                            self.name
-                        ),
-                        Err(idx) => {
-                            let wk_name = utils::map_workspace_id(id);
+                    if let Err(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
+                        let wk_name = utils::map_workspace_id(id);
 
-                            let mut builder = self.workspace_builder.clone();
+                        let mut builder = self.workspace_builder.clone();
 
-                            if id == self.active_workspace {
-                                builder = builder.fg(self.active_fg).bg(self.active_bg);
-                            }
-
-                            let wk = builder
-                                .text(wk_name.as_str())
-                                .build(&format!("{} {wk_name}", self.name));
-                            self.workspaces.insert(idx, (id, wk));
+                        if id == self.active_workspace {
+                            builder = builder.fg(self.active_fg).bg(self.active_bg);
                         }
+
+                        let wk = builder
+                            .text(wk_name.as_str())
+                            .build(&format!("{} {wk_name}", self.name));
+                        self.workspaces.insert(idx, (id, wk));
                     }
 
                     self.should_resize = true;
                 }
                 WorkerMsg::WorkspaceDestroy(id) => {
-                    match self.workspaces.binary_search_by_key(&id, |w| w.0) {
-                        Ok(idx) => {
-                            self.workspaces.remove(idx);
-                        }
-                        Err(_idx) => log::warn!(
-                            "'{}' update_workspaces :: destroyed non-existant workspace id={id}",
-                            self.name
-                        ),
+                    if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
+                        self.workspaces.remove(idx);
                     }
                     self.should_resize = true;
                 }
@@ -186,11 +170,11 @@ impl Widget for Workspaces<'_> {
         let mut wk_area = area;
         wk_area.max.x = wk_area.min.x + height;
         for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
-            log::trace!(
-                "'{}' | resize :: wk_area: {wk_area}, size: {}",
-                self.name,
-                wk_area.size()
-            );
+            //log::trace!(
+            //    "'{}' | resize :: wk_area: {wk_area}, size: {}",
+            //    self.name,
+            //    wk_area.size()
+            //);
             debug_assert!(area.contains_rect(wk_area));
             debug_assert!(wk_area.size() == Point::new(height, height));
 
@@ -207,6 +191,11 @@ impl Widget for Workspaces<'_> {
                 .last_hover
                 .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
             {
+                log::trace!(
+                    "'{}' | resize :: widget '{}' is new hover target",
+                    self.name,
+                    w.name()
+                );
                 w.motion(hover_point).unwrap();
                 self.last_hover = Some((idx, hover_point));
             }
@@ -218,7 +207,7 @@ impl Widget for Workspaces<'_> {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_workspaces()?;
-        let redraw = ctx.full_redraw;
+        let redraw = ctx.full_redraw; // TODO: Fix so we don't redraw fully each time
         if self.should_resize || redraw {
             ctx.full_redraw = true;
             self.area.draw(self.bg, ctx);
@@ -281,6 +270,7 @@ impl Widget for Workspaces<'_> {
     fn motion_leave(&mut self, point: Point) -> Result<()> {
         if let Some((_id, w)) = self
             .last_hover
+            .take()
             .and_then(|(idx, _area)| self.workspaces.get_mut(idx))
         {
             w.motion_leave(point).unwrap();

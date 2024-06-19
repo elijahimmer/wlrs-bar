@@ -142,7 +142,7 @@ impl ClockBuilder {
 
     pub fn build<'a>(&self, name: &str) -> Clock<'a> {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
-        log::info!("'{name}' | new :: initializing with height: {desired_height}");
+        log::info!("'{name}' :: Initializing with height: {desired_height}");
 
         let time_builder = TextBox::builder()
             .text("00")
