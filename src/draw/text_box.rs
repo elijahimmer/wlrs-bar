@@ -124,6 +124,7 @@ impl Widget for TextBox<'_> {
     }
 
     fn resize(&mut self, rect: Rect) {
+        log::trace!("'{}' | resize :: rect: {rect}", self.name);
         self.redraw = true;
         if rect == self.area && !self.rerender_text {
             return;
@@ -215,9 +216,21 @@ impl Widget for TextBox<'_> {
         let mut bb_last = area_used;
         bb_last.max.x = bb_last.min.x;
 
-        for (idx, gly) in self.glyphs.as_ref().unwrap().iter().enumerate() {
-            if let Some(bb_i32) = gly.pixel_bounding_box() {
-                let mut bb: Rect = bb_i32.into();
+        let mut iter = self
+            .glyphs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .skip(self.text_first_diff.saturating_sub(1));
+
+        //bb_last.min.x += iter
+        //    .next()
+        //    .map(|g| Rect::from(g.pixel_bounding_box().unwrap()).min.x as u32)
+        //    .unwrap();
+
+        for (idx, gly) in iter.enumerate() {
+            if let Some(bb_i32) = gly.pixel_bounding_box().map(|g| g.into()) {
+                let mut bb: Rect = bb_i32;
                 #[cfg(debug_assertions)]
                 {
                     let glyph_width = gly.unpositioned().h_metrics().advance_width.ceil() as u32;
@@ -308,11 +321,11 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     pub fn new() -> TextBoxBuilder<'glyphs> {
         Self {
             font: &FONT,
-            fg: color::GOLD,
-            bg: color::LOVE,
             desired_text_height: u32::MAX,
             desired_width: None,
 
+            fg: Default::default(),
+            bg: Default::default(),
             text: Default::default(),
             top_margin: Default::default(),
             bottom_margin: Default::default(),

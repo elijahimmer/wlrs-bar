@@ -1,7 +1,7 @@
 use super::{Align, Color, DrawCtx, Point};
 use crate::utils::cmp;
 
-//use wayland_client::protocol::wl_surface::WlSurface;
+use wayland_client::protocol::wl_surface::WlSurface;
 
 /**
  * A Rectangle to present area used on the screen.
@@ -144,20 +144,24 @@ impl Rect {
             ctx.put(Point::new(self.max.x - 1, y), color);
         }
     }
+
+    pub fn damage_outline(self, surface: WlSurface) {
+        debug_assert!(self.max > self.min);
+        let x_min = self.min.x as i32;
+        let x_max = self.max.x as i32 - 1;
+        let y_min = self.min.y as i32;
+        let y_max = self.max.y as i32 - 1;
+
+        surface.damage(x_min, x_max, y_min, y_min);
+        surface.damage(x_min, x_max, y_max, y_max);
+        surface.damage(x_min, x_min, y_min, y_max);
+        surface.damage(x_max, x_max, y_min, y_max);
+    }
 }
 
 impl From<rusttype::Rect<i32>> for Rect {
     fn from(val: rusttype::Rect<i32>) -> Self {
         Self::new(val.min.into(), val.max.into())
-    }
-}
-
-impl From<Rect> for rusttype::Rect<i32> {
-    fn from(val: Rect) -> Self {
-        Self {
-            min: val.min.into(),
-            max: val.max.into(),
-        }
     }
 }
 

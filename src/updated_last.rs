@@ -110,7 +110,7 @@ impl UpdatedLastBuilder {
 
     pub fn build<'a>(&self, name: &str) -> UpdatedLast<'a> {
         log::info!(
-            "'{name}' | new :: initializing with height: {}",
+            "'{name}' | Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
         let time = chrono::DateTime::from_timestamp(self.time_stamp, 0)
@@ -119,10 +119,11 @@ impl UpdatedLastBuilder {
         let text = TextBox::builder()
             .v_align(self.v_align)
             .h_align(self.h_align)
+            .h_margins(self.desired_height.unwrap_or(0) / 2)
             .fg(self.fg)
             .bg(self.bg)
             .text("Default Text")
-            .desired_text_height(self.desired_height.unwrap_or(u32::MAX) * 20 / 23)
+            .desired_text_height(self.desired_height.map(|s| s * 20 / 23).unwrap_or(u32::MAX))
             .build(&(name.to_owned() + " Text"));
 
         UpdatedLast {

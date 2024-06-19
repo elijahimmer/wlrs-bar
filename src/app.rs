@@ -27,7 +27,7 @@ use wayland_client::{
 };
 
 pub const WIDTH: u32 = 0;
-pub const HEIGHT: u32 = 28;
+pub const HEIGHT: u32 = 64;
 
 pub struct App {
     pub connection: Connection,
@@ -79,12 +79,14 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        widgets.push(Box::new(crate::clock::Clock::new(
-            "Clock",
-            HEIGHT,
-            Align::Center,
-            Align::Center,
-        )));
+        widgets.push(Box::new(
+            crate::clock::Clock::builder()
+                .number_fg(color::ROSE)
+                .spacer_fg(color::PINE)
+                .bg(color::SURFACE)
+                .desired_height(HEIGHT)
+                .build("Clock"),
+        ));
 
         match crate::workspaces::Workspaces::new("Workspaces", HEIGHT, Align::Start, Align::Center)
         {
@@ -97,9 +99,9 @@ impl App {
                 crate::updated_last::UpdatedLast::builder()
                     .time_stamp(time_stamp)
                     .h_align(Align::End)
-                    .desired_height(HEIGHT)
                     .fg(color::ROSE)
                     .bg(color::SURFACE)
+                    .desired_height(HEIGHT)
                     .build("Updated Last"),
             ))
         }
@@ -360,11 +362,11 @@ impl App {
             full_redraw: self.redraw,
         };
 
-        //for dam in self.last_damage.iter() {
-        //    dam.draw_outline(color::SURFACE, &mut ctx);
-        //    dam.damage_outline(surface.clone());
-        //}
-        //debug_assert!(ctx.damage.is_empty());
+        for dam in self.last_damage.iter() {
+            dam.draw_outline(color::SURFACE, &mut ctx);
+            dam.damage_outline(surface.clone());
+        }
+        debug_assert!(ctx.damage.is_empty());
 
         self.last_damage.clear();
         ctx.damage = &mut self.last_damage;
@@ -379,7 +381,7 @@ impl App {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("draw :: widget failed to draw: error={err}");
             }
-            //w.area().draw_outline(color::PINE, &mut ctx);
+            w.area().draw_outline(color::PINE, &mut ctx);
         }
 
         if self.redraw {
@@ -398,7 +400,7 @@ impl App {
                     dam.max.y as i32,
                 );
 
-                //dam.draw_outline(color::LOVE, &mut ctx);
+                dam.draw_outline(color::LOVE, &mut ctx);
             }
         }
 

@@ -1,4 +1,4 @@
-use crate::draw::{color, Align, DrawCtx, Rect, TextBox};
+use crate::draw::{Align, Color, DrawCtx, Rect, TextBox};
 use crate::widget::{center_widgets, Widget};
 
 use anyhow::Result;
@@ -19,45 +19,9 @@ pub struct Clock<'a> {
 }
 
 impl Clock<'_> {
-    pub fn new<'a>(name: &str, desired_height: u32, h_align: Align, v_align: Align) -> Clock<'a> {
-        log::info!("'{name}' | new :: initializing with height: {desired_height}");
-
-        let time_builder = TextBox::builder()
-            .text("00")
-            .fg(color::ROSE)
-            .bg(color::SURFACE)
-            .desired_text_height(desired_height);
-
-        let spacer_builder = TextBox::builder()
-            .text("")
-            .fg(color::PINE)
-            .bg(color::SURFACE)
-            .desired_text_height(desired_height / 3 * 2)
-            .h_margins(desired_height / 5)
-            .v_align(Align::CenterAt(0.45));
-
-        let __hours = time_builder.build(&(name.to_string() + "   hours"));
-        let minutes = time_builder.build(&(name.to_string() + " minutes"));
-        let seconds = time_builder.build(&(name.to_string() + " seconds"));
-
-        let spacer1 = spacer_builder.build(&(name.to_string() + " spacer1"));
-        let spacer2 = spacer_builder.build(&(name.to_string() + " spacer2"));
-
-        Clock {
-            name: name.into(),
-            desired_height,
-            h_align,
-            v_align,
-
-            __hours,
-            spacer1,
-            minutes,
-            spacer2,
-            seconds,
-            area: Default::default(),
-        }
+    pub fn builder() -> ClockBuilder {
+        Default::default()
     }
-
     fn update_time(&mut self) {
         let time = chrono::Local::now();
         self.__hours.set_text(&format2digits(time.hour() as u8));
@@ -141,4 +105,67 @@ fn format2digits(n: u8) -> Box<str> {
     s.push((b'0' + (n % 10)) as char);
 
     s.into()
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ClockBuilder {
+    desired_height: Option<u32>,
+    h_align: Align,
+    v_align: Align,
+    number_fg: Color,
+    spacer_fg: Color,
+    bg: Color,
+}
+
+impl ClockBuilder {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    crate::builder_fields! {
+        u32, desired_height;
+        Align, v_align h_align;
+        Color, number_fg spacer_fg bg;
+    }
+
+    pub fn build<'a>(&self, name: &str) -> Clock<'a> {
+        let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
+        log::info!("'{name}' | new :: initializing with height: {desired_height}");
+
+        let time_builder = TextBox::builder()
+            .text("00")
+            .fg(self.number_fg)
+            .bg(self.bg)
+            .desired_text_height(desired_height)
+            .desired_width(desired_height);
+
+        let spacer_builder = TextBox::builder()
+            .text("")
+            .fg(self.spacer_fg)
+            .bg(self.bg)
+            .desired_text_height(desired_height * 2 / 3)
+            .h_margins(desired_height / 5)
+            .v_align(Align::CenterAt(0.45));
+
+        let __hours = time_builder.build(&(name.to_owned() + "   hours"));
+        let minutes = time_builder.build(&(name.to_owned() + " minutes"));
+        let seconds = time_builder.build(&(name.to_owned() + " seconds"));
+
+        let spacer1 = spacer_builder.build(&(name.to_owned() + " spacer1"));
+        let spacer2 = spacer_builder.build(&(name.to_owned() + " spacer2"));
+
+        Clock {
+            name: name.into(),
+            desired_height,
+            h_align: self.h_align,
+            v_align: self.v_align,
+
+            __hours,
+            spacer1,
+            minutes,
+            spacer2,
+            seconds,
+            area: Default::default(),
+        }
+    }
 }
