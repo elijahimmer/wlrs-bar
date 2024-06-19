@@ -145,7 +145,7 @@ impl Rect {
 
     pub fn draw(self, color: Color, ctx: &mut DrawCtx) {
         debug_assert!(self.max > self.min);
-        log::debug!("draw :: self: {self}");
+        //log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
                 ctx.put(Point { x, y }, color);

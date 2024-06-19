@@ -1,4 +1,4 @@
-use crate::draw::{Align, Color, DrawCtx, Rect, TextBox};
+use crate::draw::prelude::*;
 use crate::widget::{center_widgets, Widget};
 
 use anyhow::Result;
@@ -96,6 +96,10 @@ impl Widget for Clock<'_> {
             }
         });
 
+        Ok(())
+    }
+
+    fn click(&mut self, _button: u32, _point: Point) -> Result<()> {
         Ok(())
     }
 }

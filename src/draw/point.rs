@@ -34,47 +34,29 @@ impl Point {
     }
 }
 
-impl From<rusttype::Point<u32>> for Point {
-    fn from(val: rusttype::Point<u32>) -> Self {
-        Self::new(val.x, val.y)
-    }
-}
-
-impl From<Point> for rusttype::Point<u32> {
-    fn from(val: Point) -> Self {
-        Self { x: val.x, y: val.y }
-    }
-}
-
-impl From<rusttype::Point<i32>> for Point {
-    fn from(val: rusttype::Point<i32>) -> Self {
-        Self::new(val.x as u32, val.y as u32)
-    }
-}
-
-impl From<Point> for rusttype::Point<i32> {
-    fn from(val: Point) -> Self {
-        Self {
-            x: val.x as i32,
-            y: val.y as i32,
+macro_rules! for_each_primative {
+    ($($t:ty)+) => ($(
+        impl From<($t, $t)> for Point {
+            fn from((x, y): ($t, $t)) -> Self {
+                Self::new(x as u32, y as u32)
+            }
         }
-    }
-}
 
-impl From<rusttype::Point<f32>> for Point {
-    fn from(val: rusttype::Point<f32>) -> Self {
-        Self::new(val.x.round() as u32, val.y.round() as u32)
-    }
-}
-
-impl From<Point> for rusttype::Point<f32> {
-    fn from(val: Point) -> Self {
-        Self {
-            x: val.x as f32,
-            y: val.y as f32,
+        impl From<rusttype::Point<$t>> for Point {
+            fn from(val: rusttype::Point<$t>) -> Self {
+                Self::new(val.x as u32, val.y as u32)
+            }
         }
-    }
+
+        impl From<Point> for rusttype::Point<$t> {
+            fn from(val: Point) -> Self {
+                Self { x: val.x as $t, y: val.y as $t }
+            }
+        }
+    )*)
 }
+
+for_each_primative!(u8 u16 u32 u64 i8 i16 i32 i64 f32 f64);
 
 use std::ops::Add;
 impl Add<Self> for Point {

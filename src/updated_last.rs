@@ -1,4 +1,4 @@
-use crate::draw::*;
+use crate::draw::prelude::*;
 use crate::widget::Widget;
 
 use anyhow::Result;
@@ -50,6 +50,10 @@ impl Widget for UpdatedLast<'_> {
         } else {
             Ok(())
         }
+    }
+
+    fn click(&mut self, _button: u32, _point: Point) -> Result<()> {
+        Ok(())
     }
 }
 

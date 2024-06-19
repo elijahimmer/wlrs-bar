@@ -1,7 +1,7 @@
 pub mod utils;
 pub mod worker;
 
-use crate::draw::*;
+use crate::draw::prelude::*;
 use crate::widget::*;
 use utils::WorkspaceID;
 use worker::{work, ManagerMsg, WorkerMsg};
@@ -219,6 +219,14 @@ impl Widget for Workspaces<'_> {
         });
 
         ctx.full_redraw = redraw;
+        Ok(())
+    }
+
+    fn click(&mut self, _button: u32, point: Point) -> Result<()> {
+        if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
+            let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
+        }
+
         Ok(())
     }
 }

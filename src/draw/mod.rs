@@ -1,13 +1,10 @@
 pub mod color;
 pub mod point;
+pub mod prelude;
 pub mod rect;
 pub mod text_box;
 
-pub use color::Color;
-pub use point::*;
-pub use rect::*;
-pub use text_box::{TextBox, TextBoxBuilder};
-
+use prelude::*;
 use rusttype::{Font, Scale};
 
 pub static FONT_DATA: &[u8] = include_bytes!("../../fonts/FiraCodeNerdFontMono-Regular.ttf");

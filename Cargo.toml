@@ -19,4 +19,5 @@ wayland-client = { version = "0.31.2", features = ["log"] }
 [features]
 debug = []
 damage = []
+textbox-debug = []
 

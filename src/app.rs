@@ -1,4 +1,4 @@
-use super::draw::{color, Align, Point, Rect};
+use super::draw::{color, prelude::*};
 use super::widget::Widget;
 
 use smithay_client_toolkit::{
@@ -305,31 +305,35 @@ impl PointerHandler for App {
         _pointer: &wl_pointer::WlPointer,
         events: &[PointerEvent],
     ) {
-        use PointerEventKind::*;
         for event in events {
+            let point: Point = event.position.into();
             // Ignore events for other surfaces
             if &event.surface != self.layer_surface.wl_surface() {
+                log::trace!("got a click from another surface");
                 continue;
             }
+            use PointerEventKind as PEK;
             match event.kind {
-                Enter { .. } => {
-                    log::trace!("pointer_frame :: Pointer entered @{:?}", event.position);
+                PEK::Enter { .. } => {
+                    //log::trace!("pointer_frame :: Pointer entered @{:?}", event.position);
                 }
-                Leave { .. } => {
-                    log::trace!("pointer_frame :: Pointer left");
+                PEK::Leave { .. } => {
+                    //log::trace!("pointer_frame :: Pointer left");
                 }
-                Motion { .. } => {}
-                Press { button, .. } => {
-                    log::trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
+                PEK::Motion { .. } => {}
+                PEK::Press { .. } => {
+                    // only care about releasing, not pressing
+                    //log::trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
                 }
-                Release { button, .. } => {
-                    log::trace!(
-                        "pointer_frame :: Release {:x} @ {:?}",
-                        button,
-                        event.position
-                    );
+                PEK::Release { button, .. } => {
+                    if let Some(widget) = self.widgets.iter_mut().find(|w| w.area().contains(point))
+                    {
+                        if let Err(err) = widget.click(button, point) {
+                            log::warn!("click on '{}' failed. error={err}", widget.name());
+                        }
+                    }
                 }
-                Axis {
+                PEK::Axis {
                     horizontal,
                     vertical,
                     ..

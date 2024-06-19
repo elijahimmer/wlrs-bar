@@ -1,4 +1,4 @@
-use crate::draw::{Align, DrawCtx, Point, Rect};
+use crate::draw::prelude::*;
 use anyhow::Result;
 
 pub trait Widget {
@@ -11,6 +11,8 @@ pub trait Widget {
 
     fn resize(&mut self, rect: Rect);
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()>;
+
+    fn click(&mut self, button: u32, point: Point) -> Result<()>;
 }
 
 pub trait PositionedWidget {
