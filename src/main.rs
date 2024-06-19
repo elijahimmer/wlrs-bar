@@ -1,7 +1,8 @@
-pub mod app;
 pub mod draw;
 pub mod utils;
 pub mod widget;
+
+pub mod app;
 
 pub mod clock;
 pub mod updated_last;

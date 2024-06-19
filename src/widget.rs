@@ -32,16 +32,16 @@ pub trait PositionedWidget {
     }
 }
 
-pub trait Builder {
-    type Widget;
-    fn new() -> Self;
-    fn build(&self, name: &str) -> Self::Widget;
-}
+//pub trait Builder {
+//    type Widget;
+//    fn new() -> Self;
+//    fn build(&self, name: &str) -> Self::Widget;
+//}
 
-// places widgets from the center propagating out,
-// scaling all down by the same ratio if needed.
-// the widgets are places the center first, then left and right.
-// if there is a even amount, 2 are placed with edges on the center line.
+/// places widgets from the center propagating out,
+/// scaling all down by the same ratio if needed.
+/// the widgets are places the center first, then left and right.
+/// if there is a even amount, 2 are placed with edges on the center line.
 pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect) {
     let (width_max, height_max) = (area.width(), area.height());
     log::trace!("center_widgets :: {area}");

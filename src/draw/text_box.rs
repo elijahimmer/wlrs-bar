@@ -190,6 +190,7 @@ impl Widget for TextBox<'_> {
         }
 
         if self.rerender_text {
+            // TODO: Optimize so you only re-render what has changed, if applicable
             log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
             let (glyphs, width) = render_glyphs(self.font, &self.text, self.scale);
             if width > self.area.width() {
