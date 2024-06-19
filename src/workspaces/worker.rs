@@ -18,7 +18,7 @@ impl WorkerMsg {
             "createworkspace" => Some(Self::WorkspaceCreate(msg.parse()?)),
             "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse()?)),
             _ => {
-                log::trace!("work :: cmd: '{cmd}' msg: '{msg}'");
+                //log::trace!("work :: cmd: '{cmd}' msg: '{msg}'");
                 None
             }
         })
@@ -49,7 +49,7 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
         match recv.try_recv() {
             Ok(msg) => match msg {
                 ManagerMsg::Close => {
-                    log::debug!("'{name}' work :: told to close");
+                    log::info!("'{name}' work :: told to close");
                     break;
                 }
             },
@@ -59,6 +59,8 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             }
             Err(TryRecvError::Empty) => {}
         }
+
+        std::thread::yield_now();
 
         let bytes_read = match socket.read(&mut buf) {
             Ok(b) => b,

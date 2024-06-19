@@ -22,7 +22,7 @@ pub struct Workspaces<'a> {
     active_fg: Color,
     active_bg: Color,
 
-    last_hover: Option<usize>,
+    last_hover: Option<(usize, Point)>,
 
     worker_handle: Option<JoinHandle<Result<()>>>,
     worker_send: Sender<ManagerMsg>,
@@ -175,7 +175,7 @@ impl Widget for Workspaces<'_> {
             .iter()
             .map(|(_idx, w)| w.desired_width(height))
             .sum::<u32>()
-            .max(height * 12) // gives about the right size for any text
+            .max(height * 12) // 12 workspaces worth- that should be enough
     }
     fn resize(&mut self, area: Rect) {
         let Point {
@@ -185,7 +185,7 @@ impl Widget for Workspaces<'_> {
 
         let mut wk_area = area;
         wk_area.max.x = wk_area.min.x + height;
-        for (_idx, ref mut w) in &mut self.workspaces {
+        for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
             log::trace!(
                 "'{}' | resize :: wk_area: {wk_area}, size: {}",
                 self.name,
@@ -193,7 +193,24 @@ impl Widget for Workspaces<'_> {
             );
             debug_assert!(area.contains_rect(wk_area));
             debug_assert!(wk_area.size() == Point::new(height, height));
+
+            let old_area = w.area();
             w.resize(wk_area);
+
+            if let Some((_hover_idx, hover_point)) =
+                self.last_hover.filter(|(_hover_idx, hover_point)| {
+                    old_area.contains(*hover_point) && !wk_area.contains(*hover_point)
+                })
+            {
+                w.motion_leave(hover_point).unwrap();
+            } else if let Some((_hover_idx, hover_point)) = self
+                .last_hover
+                .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
+            {
+                w.motion(hover_point).unwrap();
+                self.last_hover = Some((idx, hover_point));
+            }
+
             wk_area = wk_area.x_shift(height as i32);
         }
         self.area = area;
@@ -245,11 +262,14 @@ impl Widget for Workspaces<'_> {
             .map(|(idx, (_id, w))| {
                 w.motion(point).unwrap();
 
-                idx
+                (idx, point)
             });
 
-        if self.last_hover != moved_in_idx {
-            if let Some((_id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+        if self.last_hover.unzip().0 != moved_in_idx.unzip().0 {
+            if let Some((_id, w)) = self
+                .last_hover
+                .and_then(|(idx, _area)| self.workspaces.get_mut(idx))
+            {
                 w.motion_leave(point).unwrap();
             }
         }
@@ -259,7 +279,10 @@ impl Widget for Workspaces<'_> {
         Ok(())
     }
     fn motion_leave(&mut self, point: Point) -> Result<()> {
-        if let Some((_id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+        if let Some((_id, w)) = self
+            .last_hover
+            .and_then(|(idx, _area)| self.workspaces.get_mut(idx))
+        {
             w.motion_leave(point).unwrap();
         }
 

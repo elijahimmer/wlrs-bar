@@ -5,7 +5,7 @@ use wayland_client::protocol::wl_surface::WlSurface;
 
 /**
  * A Rectangle to present area used on the screen.
- * The min should *always* be smaller than, not equal to,
+ * The min should *always* be smaller than or equal to,
  *  the max in both x and y.
  */
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -29,22 +29,22 @@ impl Rect {
     }
 
     pub fn width(self) -> u32 {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         self.max.x - self.min.x
     }
 
     pub fn height(self) -> u32 {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         self.max.y - self.min.y
     }
 
     pub fn size(self) -> Point {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Point::new(self.width(), self.height())
     }
 
     pub fn center(self) -> Point {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Point {
             x: (self.min.x + self.max.x) / 2,
             y: (self.min.y + self.max.y) / 2,
@@ -53,7 +53,7 @@ impl Rect {
 
     pub fn largest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Self {
             min: self.min.smallest(other.min),
             max: self.max.largest(other.max),
@@ -62,12 +62,12 @@ impl Rect {
 
     pub fn smallest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Self::new(self.min.largest(other.min), self.max.smallest(other.max))
     }
 
     pub fn x_shift(self, x_offset: i32) -> Self {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Self {
             min: self.min.x_shift(x_offset),
             max: self.max.x_shift(x_offset),
@@ -75,7 +75,7 @@ impl Rect {
     }
 
     pub fn y_shift(self, y_offset: i32) -> Self {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         Self {
             min: self.min.y_shift(y_offset),
             max: self.max.y_shift(y_offset),
@@ -84,7 +84,7 @@ impl Rect {
 
     pub fn place_at(self, size: Point, h_align: Align, v_align: Align) -> Self {
         //log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         debug_assert!(self.max.x >= self.min.x + size.x);
         debug_assert!(self.max.y >= self.min.y + size.y);
 
@@ -130,13 +130,13 @@ impl Rect {
 
     pub fn contains(self, p: impl Into<Point>) -> bool {
         let p = p.into();
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         (self.min.x..=self.max.x).contains(&p.x) && (self.min.y..=self.max.y).contains(&p.y)
     }
 
     pub fn contains_rect(self, r: impl Into<Self>) -> bool {
         let r = r.into();
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         self.min.x <= r.min.x
             && self.min.y <= r.min.y
             && self.max.x >= r.max.x
@@ -144,7 +144,7 @@ impl Rect {
     }
 
     pub fn draw(self, color: Color, ctx: &mut DrawCtx) {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         //log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
@@ -154,7 +154,7 @@ impl Rect {
     }
 
     pub fn draw_outline(self, color: Color, ctx: &mut DrawCtx) {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         for x in self.min.x + 1..self.max.x {
             ctx.put(Point::new(x, self.min.y), color);
             ctx.put(Point::new(x, self.max.y - 1), color);
@@ -167,7 +167,7 @@ impl Rect {
     }
 
     pub fn damage_outline(self, surface: WlSurface) {
-        debug_assert!(self.max > self.min);
+        debug_assert!(self.max >= self.min);
         let x_min = self.min.x as i32;
         let x_max = self.max.x as i32 - 1;
         let y_min = self.min.y as i32;
