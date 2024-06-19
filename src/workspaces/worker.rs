@@ -1,5 +1,5 @@
 use super::utils::*;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::io::Read;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
@@ -32,6 +32,9 @@ pub enum ManagerMsg {
 
 pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Result<()> {
     let mut socket = open_hypr_socket(HyprSocket::Event)?;
+    if let Err(err) = socket.set_nonblocking(true) {
+        log::warn!("'{name}' | work :: couldn't set socket to non-blocking. error={err}");
+    }
 
     send.send(WorkerMsg::WorkspaceReset)?;
     get_workspaces()?
@@ -57,7 +60,13 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             Err(TryRecvError::Empty) => {}
         }
 
-        let bytes_read = socket.read(&mut buf)?;
+        let bytes_read = match socket.read(&mut buf) {
+            Ok(b) => b,
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::WouldBlock => continue,
+                _ => bail!("'{name}' | work :: failed to read from socket: {err}"),
+            },
+        };
 
         String::from_utf8_lossy(&buf[..bytes_read])
             .lines()
