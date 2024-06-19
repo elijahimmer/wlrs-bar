@@ -21,8 +21,6 @@ pub struct Workspaces<'a> {
     bg: Color,
     active_fg: Color,
     active_bg: Color,
-    hover_fg: Color,
-    hover_bg: Color,
 
     last_hover: Option<usize>,
 
@@ -245,21 +243,14 @@ impl Widget for Workspaces<'_> {
             .enumerate()
             .find(|(_idx, (_id, w))| w.area().contains(point))
             .map(|(idx, (_id, w))| {
-                w.set_fg(self.hover_fg);
-                w.set_bg(self.hover_bg);
+                w.motion(point).unwrap();
 
                 idx
             });
 
         if self.last_hover != moved_in_idx {
-            if let Some((id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
-                if *id == self.active_workspace {
-                    w.set_fg(self.active_fg);
-                    w.set_bg(self.active_bg);
-                } else {
-                    w.set_fg(self.fg);
-                    w.set_bg(self.bg);
-                }
+            if let Some((_id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+                w.motion_leave(point).unwrap();
             }
         }
 
@@ -267,15 +258,9 @@ impl Widget for Workspaces<'_> {
 
         Ok(())
     }
-    fn motion_leave(&mut self, _point: Point) -> Result<()> {
-        if let Some((id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
-            if *id == self.active_workspace {
-                w.set_fg(self.active_fg);
-                w.set_bg(self.active_bg);
-            } else {
-                w.set_fg(self.fg);
-                w.set_bg(self.bg);
-            }
+    fn motion_leave(&mut self, point: Point) -> Result<()> {
+        if let Some((_id, w)) = self.last_hover.and_then(|idx| self.workspaces.get_mut(idx)) {
+            w.motion_leave(point).unwrap();
         }
 
         Ok(())
@@ -315,6 +300,8 @@ impl WorkspacesBuilder {
         let workspace_builder = TextBox::builder()
             .fg(self.fg)
             .bg(self.bg)
+            .hover_fg(self.hover_fg)
+            .hover_bg(self.hover_bg)
             .h_align(Align::Center)
             .v_align(Align::Center)
             .desired_text_height(self.desired_height * 20 / 23);
@@ -344,8 +331,6 @@ impl WorkspacesBuilder {
             bg: self.bg,
             active_fg: self.active_fg,
             active_bg: self.active_bg,
-            hover_fg: self.hover_fg,
-            hover_bg: self.hover_bg,
 
             active_workspace: 1,
             last_hover: Default::default(),

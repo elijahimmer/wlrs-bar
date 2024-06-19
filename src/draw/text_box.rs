@@ -14,8 +14,14 @@ pub struct TextBox<'glyphs> {
     text_first_diff: usize, // TODO: Change to a full range and if aligned to the right render
     // from the right back. That'll be fun :)
     name: Box<str>,
+
+    fg_drawn: Color,
+    bg_drawn: Color,
+
     fg: Color,
     bg: Color,
+    hover_fg: Option<Color>,
+    hover_bg: Option<Color>,
 
     top_margin: u32,
     bottom_margin: u32,
@@ -86,6 +92,9 @@ impl<'a> TextBox<'a> {
     pub fn set_fg(&mut self, fg: Color) {
         if fg != self.fg {
             self.redraw = true;
+            if self.fg_drawn == self.fg {
+                self.fg_drawn = fg;
+            }
             self.fg = fg;
         }
     }
@@ -93,6 +102,9 @@ impl<'a> TextBox<'a> {
     pub fn set_bg(&mut self, bg: Color) {
         if bg != self.bg {
             self.redraw = true;
+            if self.bg_drawn == self.bg {
+                self.bg_drawn = bg;
+            }
             self.bg = bg;
         }
     }
@@ -227,18 +239,18 @@ impl Widget for TextBox<'_> {
         if redraw_full {
             #[cfg(feature = "textbox-debug")]
             log::debug!("'{}' | draw :: redrawing fully", self.name);
-            self.area.draw(self.bg, ctx);
+            self.area.draw(self.bg_drawn, ctx);
         }
 
         let glyphs = self.glyphs.as_ref().unwrap();
 
         if self.text_first_diff == 0 {
-            self.area.draw(self.bg, ctx);
+            self.area.draw(self.bg_drawn, ctx);
             ctx.damage.push(self.area);
         } else {
             let mut area_to_fill = self.area;
             area_to_fill.min.x += glyphs[self.text_first_diff - 1].1.max.x;
-            area_to_fill.draw(self.bg, ctx);
+            area_to_fill.draw(self.bg_drawn, ctx);
             ctx.damage.push(area_to_fill);
         }
 
@@ -248,7 +260,7 @@ impl Widget for TextBox<'_> {
             .for_each(|(gly, mut bb)| {
                 bb.min += area_used.min;
                 gly.draw(|x, y, v| {
-                    let color = self.bg.blend(self.fg, v);
+                    let color = self.bg_drawn.blend(self.fg_drawn, v);
                     let point = Point::new(bb.min.x + x, bb.min.y + y);
 
                     debug_assert!(area_used.contains(point));
@@ -276,10 +288,33 @@ impl Widget for TextBox<'_> {
         Ok(())
     }
 
-    fn motion(&mut self, _point: Point) -> Result<()> {
+    fn motion(&mut self, point: Point) -> Result<()> {
+        debug_assert!(self.area.contains(point));
+
+        if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
+            self.redraw = true;
+            self.fg_drawn = c;
+        }
+
+        if let Some(c) = self.hover_bg.filter(|&c| c != self.bg_drawn) {
+            self.redraw = true;
+            self.bg_drawn = c;
+        }
+
         Ok(())
     }
+
     fn motion_leave(&mut self, _point: Point) -> Result<()> {
+        if self.fg != self.fg_drawn {
+            self.redraw = true;
+            self.fg_drawn = self.fg;
+        }
+
+        if self.bg != self.bg_drawn {
+            self.redraw = true;
+            self.bg_drawn = self.bg;
+        }
+
         Ok(())
     }
 }
@@ -305,6 +340,8 @@ pub struct TextBoxBuilder<'glyphs> {
     text: Box<str>,
     fg: Color,
     bg: Color,
+    hover_fg: Option<Color>,
+    hover_bg: Option<Color>,
     desired_text_height: u32,
     desired_width: Option<u32>,
 
@@ -325,6 +362,8 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
 
             fg: Default::default(),
             bg: Default::default(),
+            hover_fg: Default::default(),
+            hover_bg: Default::default(),
             text: Default::default(),
             top_margin: Default::default(),
             bottom_margin: Default::default(),
@@ -338,7 +377,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     crate::builder_fields! {
         &'glyphs Font<'glyphs>, font;
         &str, text;
-        Color, fg bg;
+        Color, fg bg hover_fg hover_bg;
         u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
         Align, v_align h_align;
     }
@@ -359,8 +398,12 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         TextBox {
             font: self.font,
             text: self.text.clone(),
+            fg_drawn: self.fg,
+            bg_drawn: self.bg,
             fg: self.fg,
             bg: self.bg,
+            hover_fg: self.hover_fg,
+            hover_bg: self.hover_bg,
             desired_text_height: self.desired_text_height,
             desired_width: self.desired_width,
             name: name.into(),
