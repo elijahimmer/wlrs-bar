@@ -474,7 +474,7 @@ impl App {
             if let Err(err) = w.draw(&mut ctx) {
                 log::warn!("draw :: widget failed to draw: error={err}");
             }
-            #[cfg(feature = "debug")]
+            #[cfg(feature = "outlines")]
             w.area().draw_outline(color::PINE, &mut ctx);
         }
 

@@ -17,8 +17,9 @@ smithay-client-toolkit = "0.18.1"
 wayland-client = { version = "0.31.2", features = ["log"] }
 
 [features]
-debug = []
+debug = ["outlines"]
 damage = []
+outlines = []
 textbox-all = ["textbox-logs", "textbox-outlines"]
 textbox-logs = []
 textbox-outlines = ["textbox-outlines-bounding", "textbox-outlines-area", "textbox-outlines-used"]

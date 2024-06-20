@@ -244,4 +244,6 @@ impl Display for Rect {
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    //use super::*;
+}

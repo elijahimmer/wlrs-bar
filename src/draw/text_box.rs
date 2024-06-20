@@ -11,7 +11,7 @@ pub struct TextBox<'glyphs> {
     font: &'glyphs Font<'glyphs>,
 
     text: Box<str>,
-    text_first_diff: usize, // TODO: Change to a full range and if aligned to the right render
+    text_to_draw: Option<usize>, // TODO: Change to a full range and if aligned to the right render
     // from the right back. That'll be fun :)
     name: Box<str>,
 
@@ -33,18 +33,16 @@ pub struct TextBox<'glyphs> {
     glyphs_size: Option<Point>,
     glyphs: Option<Vec<Glyph<'glyphs>>>,
 
-    maximize_space: bool,
-    height_offset: u32,
-
     area: Rect,
     desired_text_height: u32,
     desired_width: Option<u32>,
 
-    redraw: bool,
-    rerender_text: bool,
+    redraw_full: bool,
 }
 
-fn render_glyphs<'a>(font: &'a Font<'a>, text: &str, scale: Scale) -> (Vec<Glyph<'a>>, Point) {
+fn render_glyphs<'a>(font: &'a Font<'a>, text: &str, height: u32) -> (Vec<Glyph<'a>>, Point) {
+    let scale = Scale::uniform(height as f32);
+
     let v_metrics = font.v_metrics(scale);
     let offset = Point::new(0, v_metrics.ascent.round() as u32);
 
@@ -66,50 +64,6 @@ fn render_glyphs<'a>(font: &'a Font<'a>, text: &str, scale: Scale) -> (Vec<Glyph
     (glyphs, Point::new(width, height))
 }
 
-fn render_glyphs_maximize<'a>(
-    font: &'a Font<'a>,
-    text: &str,
-    height: u32,
-    maximize_space: bool,
-) -> (Vec<Glyph<'a>>, Point, u32, Scale) {
-    let scale = Scale::uniform(height as f32);
-
-    let (
-        glyphs,
-        size @ Point {
-            y: height_used,
-            ..
-        },
-    ) = render_glyphs(font, text, scale);
-    assert!(height_used <= height, "{}:{} :: {height_used} > {height}", file!(), line!());
-
-    if !maximize_space {
-        #[cfg(feature = "textbox-logs")]
-        log::debug!("render_glyphs_maximize :: scale determined: {scale:?}");
-        (glyphs, size, 0, scale)
-    } else {
-        #[cfg(feature = "textbox-logs")]
-        log::debug!("render_glyphs_maximize :: height: {height} height_used: {height_used}");
-        let scale_height_new = ((height as f32).powf(2.0) / (height_used + 1) as f32).round();
-        let scale_new = Scale::uniform(scale_height_new);
-        #[cfg(feature = "textbox-logs")]
-        log::debug!("render_glyphs_maximize :: rescaling {scale:?} to {scale_new:?}");
-
-        let (
-            glyphs_new,
-            size_new @ Point {
-                y: height_new,
-                ..
-            },
-        ) = render_glyphs(font, text, scale_new);
-
-        assert!(height_new <= height);
-        let height_offset = (scale_height_new.floor() as u32 - height_new) / 2;
-
-        (glyphs_new, size_new, height_offset, scale)
-    }
-}
-
 impl<'a> TextBox<'a> {
     pub fn set_text(&mut self, new_text: &str) {
         let new_text = new_text.trim();
@@ -121,25 +75,46 @@ impl<'a> TextBox<'a> {
             return;
         }
 
-        if !(self.redraw || self.rerender_text) {
-            if let Some((idx, _)) = self
-                .text
-                .chars()
-                .zip(new_text.chars())
-                .enumerate()
-                .find(|(_idx, (new, old))| new != old)
-            {
-                self.text_first_diff = idx;
+        match self
+            .text
+            .chars()
+            .zip(new_text.chars())
+            .position(|(new, old)| new != old)
+        {
+            Some(idx) => {
+                if !self.redraw_full {
+                    self.text_to_draw = Some(idx);
+                } else {
+                    self.text_to_draw = None;
+                }
             }
+            None => return,
         }
-
-        self.rerender_text |= *self.text != *new_text;
         self.text = new_text.into();
+        #[cfg(feature = "textbox-logs")]
+        log::trace!("'{}' | set_text :: new_text: '{new_text}'", self.name);
+
+        let area_height = self.area.height().min(self.desired_text_height);
+
+        #[cfg(feature = "textbox-logs")]
+        log::debug!("'{}' | set_text :: re-rendering glyphs", self.name);
+        let (glyphs, glyphs_size @ Point { x: width, .. }) =
+            render_glyphs(self.font, &self.text, area_height);
+        if width > self.area.width() {
+            log::info!(
+                "'{}' set_text :: resorting to resize before write",
+                self.name
+            );
+            self.resize(self.area); // TODO: Make it so we don't re-render like 4 times
+        } else {
+            self.glyphs = Some(glyphs);
+            self.glyphs_size = Some(Point::new(glyphs_size.x, area_height));
+        }
     }
 
     pub fn set_fg(&mut self, fg: Color) {
         if fg != self.fg {
-            self.redraw = true;
+            self.text_to_draw = Some(0); // only redraw text
             if self.fg_drawn == self.fg {
                 self.fg_drawn = fg;
             }
@@ -149,7 +124,8 @@ impl<'a> TextBox<'a> {
 
     pub fn set_bg(&mut self, bg: Color) {
         if bg != self.bg {
-            self.redraw = true;
+            self.redraw_full = true;
+            self.text_to_draw = None; // only redraw text
             if self.bg_drawn == self.bg {
                 self.bg_drawn = bg;
             }
@@ -191,116 +167,124 @@ impl Widget for TextBox<'_> {
             return 0;
         }
 
-        let (_glyphs, Point{x: width, ..}, ..) =
-            render_glyphs_maximize(self.font, &self.text, height, self.maximize_space);
+        let (_glyphs, Point { x: width, .. }, ..) =
+            render_glyphs(self.font, &self.text, height.min(self.desired_text_height));
 
         width + self.h_margins()
     }
 
     fn resize(&mut self, rect: Rect) {
-        if rect == self.area && !self.rerender_text {
-            #[cfg(feature = "textbox-logs")]
-            log::warn!("'{}' | resize :: resized for no reason", self.name);
+        if rect == self.area {
+            //#[cfg(feature = "textbox-logs")]
+            log::warn!(
+                "'{}' | resize :: resized without a change in area",
+                self.name
+            );
             return;
         }
+
+        if rect.size() == self.area.size() {
+            #[cfg(feature = "textbox-logs")]
+            log::trace!(
+                "'{}' | resize :: box was moved, not resized, not re-rendering text",
+                self.name
+            );
+            return;
+        }
+
         #[cfg(feature = "textbox-logs")]
         log::trace!("'{}' | resize :: rect: {rect}", self.name);
-        self.redraw = true;
-        self.rerender_text = false;
         self.area = rect;
 
-        let width_max =
-            (rect.width() - self.h_margins()).min(self.desired_width.unwrap_or(u32::MAX));
-        let height_max = (rect.height() - self.v_margins()).min(self.desired_text_height);
-
-        if width_max == 0 || height_max == 0 {
+        // the maximum area the text can be (while following margins)
+        let area_min = self.area.min + Point::new(self.left_margin, self.top_margin);
+        let area_max = self.area.max - Point::new(self.right_margin, self.bottom_margin);
+        if area_min >= area_max {
             self.glyphs_size = None;
             self.glyphs = None;
             return;
         }
 
-        let (glyphs, Point{x: width_used, y: height_used }, height_offset, scale) =
-            render_glyphs_maximize(self.font, &self.text, height_max, self.maximize_space);
-        self.height_offset = height_offset;
+        self.redraw_full = true;
+        self.text_to_draw = None;
+
+        let area_max = Rect {
+            min: area_min,
+            max: area_max,
+        };
+        let area_max_size @ Point {
+            x: width_max,
+            y: area_max_height,
+        } = area_max.size();
+
+        let height_max = area_max_height.min(self.desired_text_height);
+
+        let (glyphs, glyphs_size @ Point { x: width_used, .. }) =
+            render_glyphs(self.font, &self.text, height_max);
 
         if width_used <= width_max {
             #[cfg(feature = "textbox-logs")]
             log::debug!(
-                "'{}' | resize :: using desired height: {}",
-                self.name,
-                height_max
+                "'{}' | resize :: using desired height: {height_max}",
+                self.name
             );
-            self.glyphs_size = Some(Point::new(width_used, height_used)); // use height max as BBs
-                                                                          // rely on that
+
+            assert!(
+                glyphs_size <= area_max_size,
+                "text rendered was too tall. max: {area_max_size}, rendered: {glyphs_size}"
+            );
+            self.glyphs_size = Some(Point::new(glyphs_size.x, height_max));
+            // uses height max as the glyphs rely on that for placement
             self.glyphs = Some(glyphs);
         } else {
             // it was too big
             let ratio = width_max as f32 / width_used as f32;
-            debug_assert!((0.0..=1.0).contains(&ratio));
+            assert!(
+                (0.0..=1.0).contains(&ratio),
+                "ratio of {width_max}/{width_used} = {ratio} wasn't between 0 and 1."
+            );
 
-            let scale_new = Scale::uniform((scale.x * ratio).round());
+            let height_new = (height_max as f32 * ratio).round() as u32;
 
             #[cfg(feature = "textbox-logs")]
             log::debug!(
-                "'{}' resize :: scale down by {ratio}, {scale:?} -> {scale_new:?}",
+                "'{}' resize :: scale down by {ratio}, {height_max:?} -> {height_new:?}",
                 self.name,
             );
 
-            let (
-                new_glyphs,
-                Point {
-                    x: width_used_new,
-                    y: height_used_new,
-                },
-            ) = render_glyphs(self.font, &self.text, scale_new);
-            debug_assert!(height_used_new <= height_max);
-            debug_assert!(width_used_new <= width_max);
+            let (glyphs_new, glyphs_size_new) = render_glyphs(self.font, &self.text, height_new);
+            assert!(glyphs_size_new <= area_max_size, "the text scaled down was still too large. max: {area_max_size}, rendered: {glyphs_size_new}");
 
-            self.glyphs_size = Some(Point::new(width_used_new, height_max));
-            self.glyphs = Some(new_glyphs);
+            self.glyphs_size = Some(Point::new(glyphs_size_new.x, height_max));
+            self.glyphs = Some(glyphs_new);
         }
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        let redraw_full = ctx.full_redraw || self.redraw;
-
-        if self.glyphs_size.is_none() || !(redraw_full || self.rerender_text) {
+        assert!(
+            !(self.redraw_full && self.text_to_draw.is_some()),
+            "you cannot have to redraw all and have just a few characters to draw"
+        );
+        let redraw_full = self.redraw_full || ctx.full_redraw;
+        if (self.glyphs_size.is_none() || self.text_to_draw.is_none()) && !redraw_full {
             return Ok(());
         }
 
-        if self.rerender_text {
-            // TODO: Optimize so you only re-render what has changed, if applicable
-            #[cfg(feature = "textbox-logs")]
-            log::debug!("'{}' | draw :: re-rendering glyphs", self.name);
-            let (glyphs, glyphs_size @ Point{x: width, ..}, height_offset, ..) = render_glyphs_maximize(
-                self.font,
-                &self.text,
-                self.area.height(),
-                self.maximize_space,
-            );
-            self.height_offset = height_offset;
-            if width > self.area.width() {
-                log::info!("'{}' draw :: resorting to resize before write", self.name);
-                self.resize(self.area); // TODO: Make it so we don't re-render like 4 times
-            } else {
-                self.glyphs = Some(glyphs);
-                self.glyphs_size = Some(glyphs_size);
-            }
-        }
+        let area = self.area;
 
-        let glyphs_size @ Point{x: width, y: height} = self.glyphs_size.unwrap();
-
-        assert!(self.area.size() >= glyphs_size);
-        assert!(self.area.size().x >= width + self.h_margins());
-        assert!(self.area.size().y >= height + self.v_margins());
-
-        let text_area = Rect::new(
-            self.area.min + Point::new(self.left_margin, self.top_margin),
-            self.area.max - Point::new(self.right_margin, self.bottom_margin),
+        let area_used = area.place_at(self.glyphs_size.unwrap(), self.h_align, self.v_align);
+        let area_used_size = area_used.size();
+        #[cfg(feature = "textbox-logs")]
+        log::trace!(
+            "'{}' | draw :: area_used: {area_used} size: {area_used_size}",
+            self.name
         );
+        let glyphs_size = self.glyphs_size.unwrap();
 
-        let area_used = text_area.place_at(glyphs_size, self.h_align, self.v_align);
+        assert!(area_used_size >= glyphs_size);
+
         let glyphs = self.glyphs.as_ref().unwrap();
+        let text_to_draw = self.text_to_draw.unwrap_or(0);
 
         if redraw_full {
             #[cfg(feature = "textbox-logs")]
@@ -310,12 +294,13 @@ impl Widget for TextBox<'_> {
                 self.area
             );
             self.area.draw_composite(self.bg_drawn, ctx);
-        } else if self.text_first_diff == 0 {
-            self.area.draw_composite(self.bg_drawn, ctx);
-            ctx.damage.push(self.area);
+            ctx.damage.push(area);
+        } else if text_to_draw == 0 {
+            area_used.draw_composite(self.bg_drawn, ctx);
+            ctx.damage.push(area_used);
         } else {
-            let mut area_to_fill = self.area;
-            area_to_fill.min.x += glyphs[self.text_first_diff - 1]
+            let mut area_to_fill = area_used;
+            area_to_fill.min.x += glyphs[text_to_draw - 1]
                 .0
                 .unpositioned()
                 .h_metrics()
@@ -326,43 +311,41 @@ impl Widget for TextBox<'_> {
             ctx.damage.push(area_to_fill);
         }
 
-        if !self.maximize_space {
-            assert_eq!(self.height_offset, 0);
-        }
-
         glyphs
             .iter()
-            .skip(self.text_first_diff)
-            .for_each(|(gly, mut bb)| {
+            .skip(text_to_draw)
+            .for_each(|(gly, bb_unshifted)| {
                 #[cfg(feature = "textbox-logs")]
-                log::trace!("'{}' | draw :: bb-original: {bb}", self.name);
-                bb.min.x += area_used.min.x;
-                bb.max.x += area_used.min.x;
+                log::trace!("'{}' | draw :: bb-unshifted: {bb_unshifted}", self.name);
+                let bb_x_shifted = bb_unshifted.x_shift(area_used.min.x as i32);
+                let bb = bb_x_shifted.y_shift(area_used.min.y as i32);
                 #[cfg(feature = "textbox-logs")]
-                log::trace!(
-                    "'{}' | draw :: bb-pre: {bb}, height_offset: {}",
-                    self.name,
-                    self.height_offset
+                log::trace!("'{}' | draw :: bb: {bb}", self.name);
+                assert!(
+                    bb.size() <= glyphs_size,
+                    "bb is too big: bb: {bb}, maximum glyph size: {glyphs_size}"
                 );
-                bb = bb.y_shift(-(self.height_offset as i32));
-                #[cfg(feature = "textbox-logs")]
-                log::trace!("'{}' | draw :: bb: {bb}, area_used: {area_used}", self.name);
+                assert!(
+                    area_used.contains_rect(bb),
+                    "bb not in area: {area_used}, bb: {bb}"
+                );
                 gly.draw(|x, y, v| {
-                    let point = Point::new(bb.min.x + x, bb.min.y + y);
-                    let idx: usize = 4 * (point.x + point.y * ctx.rect.width()) as usize;
+                    let point @ Point { x, y } = bb.min + Point::new(x, y);
+
+                    let idx = 4 * (x + y * ctx.rect.width()) as usize;
+
                     let screen_bytes: &mut [u8; 4] =
                         (&mut ctx.canvas[idx..idx + 4]).try_into().unwrap();
 
                     let existing_color = Color::from_argb8888(screen_bytes);
-                    //assert!(existing_color == color::SURFACE, "{existing_color} != {}", color::SURFACE);
                     let color = self.bg.composite(existing_color).blend(self.fg_drawn, v);
 
                     *screen_bytes = color.argb8888();
 
-                    //debug_assert!(
-                    //    area_used.contains(point),
-                    //    "glyph not contained in area: {area_used}, point: {point}"
-                    //);
+                    assert!(
+                        area_used.contains(point),
+                        "glyph not contained in area: {area_used}, point: {point}"
+                    );
                 });
 
                 #[cfg(feature = "textbox-outlines-bounding")]
@@ -384,9 +367,9 @@ impl Widget for TextBox<'_> {
         //#[cfg(feature = "textbox-outlines-text")]
         //ctx.damage.push(text_area);
 
-        self.text_first_diff = 0;
-        self.redraw = false;
-        self.rerender_text = false;
+        self.text_to_draw = None;
+        self.redraw_full = false;
+        //self.redraw_text = false;
 
         Ok(())
     }
@@ -397,15 +380,17 @@ impl Widget for TextBox<'_> {
 
     fn motion(&mut self, point: Point) -> Result<()> {
         //log::debug!("'{}' | motion :: Point: {point}", self.name);
-        debug_assert!(self.area.contains(point));
+        assert!(self.area.contains(point));
 
         if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
-            self.redraw = true;
+            assert!(!self.redraw_full, "shouldn't happen");
+            self.text_to_draw = Some(0);
             self.fg_drawn = c;
         }
 
         if let Some(c) = self.hover_bg.filter(|&c| c != self.bg_drawn) {
-            self.redraw = true;
+            self.redraw_full = true;
+            self.text_to_draw = None;
             self.bg_drawn = c;
         }
 
@@ -416,12 +401,14 @@ impl Widget for TextBox<'_> {
         log::debug!("'{}' | motion_leave :: Point: {point}", self.name);
 
         if self.fg != self.fg_drawn {
-            self.redraw = true;
+            assert!(!self.redraw_full, "shouldn't happen");
+            self.text_to_draw = Some(0);
             self.fg_drawn = self.fg;
         }
 
         if self.bg != self.bg_drawn {
-            self.redraw = true;
+            self.redraw_full = true;
+            self.text_to_draw = None;
             self.bg_drawn = self.bg;
         }
 
@@ -455,7 +442,6 @@ pub struct TextBoxBuilder<'glyphs> {
     desired_text_height: u32,
     desired_width: Option<u32>,
 
-    maximize_space: bool,
     top_margin: u32,
     bottom_margin: u32,
     left_margin: u32,
@@ -471,7 +457,6 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             desired_text_height: u32::MAX,
             desired_width: None,
 
-            maximize_space: false,
             fg: Default::default(),
             bg: Default::default(),
             hover_fg: Default::default(),
@@ -491,7 +476,6 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
         Color, fg bg hover_fg hover_bg;
         Align, v_align h_align;
-        bool, maximize_space;
         &str, text;
     }
 
@@ -527,16 +511,13 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             right_margin: self.right_margin,
             h_align: self.h_align,
             v_align: self.v_align,
-            maximize_space: self.maximize_space,
 
-            redraw: true,
-            rerender_text: true,
+            redraw_full: true,
 
-            height_offset: Default::default(),
             area: Default::default(),
             glyphs: Default::default(),
             glyphs_size: Default::default(),
-            text_first_diff: Default::default(),
+            text_to_draw: Default::default(),
         }
     }
 }

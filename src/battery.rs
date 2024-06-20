@@ -118,7 +118,6 @@ impl BatteryBuilder {
             .text("")
             .fg(crate::draw::color::PINE)
             .bg(self.bg)
-            .maximize_space(true)
             .desired_text_height(desired_height * 8 / 10)
             .h_align(Align::End)
             .v_align(Align::Center)
@@ -131,7 +130,6 @@ impl BatteryBuilder {
             .bg(crate::draw::color::CLEAR)
             .h_align(Align::End)
             .v_align(Align::Center)
-            .maximize_space(true)
             .right_margin(desired_height / 10)
             .build(&(name.to_owned() + " Charging"));
 
