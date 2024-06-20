@@ -79,27 +79,27 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        widgets.push(Box::new(
-            crate::battery::Battery::builder()
-                .bg(color::SURFACE)
-                .full_fg(color::PINE)
-                .charging_fg(color::GOLD)
-                .ok_fg(color::ROSE)
-                .warn_fg(color::LOVE)
-                .desired_height(args.height)
-                .desired_width(args.height)
-                .h_align(Align::End)
-                .build("Battery"),
-        ));
-
         //widgets.push(Box::new(
-        //    crate::clock::Clock::builder()
-        //        .number_fg(color::ROSE)
-        //        .spacer_fg(color::PINE)
+        //    crate::battery::Battery::builder()
         //        .bg(color::SURFACE)
+        //        .full_fg(color::PINE)
+        //        .charging_fg(color::GOLD)
+        //        .ok_fg(color::ROSE)
+        //        .warn_fg(color::LOVE)
         //        .desired_height(args.height)
-        //        .build("Clock"),
+        //        .desired_width(args.height)
+        //        .h_align(Align::End)
+        //        .build("Battery"),
         //));
+
+        widgets.push(Box::new(
+            crate::clock::Clock::builder()
+                .number_fg(color::ROSE)
+                .spacer_fg(color::PINE)
+                .bg(color::SURFACE)
+                .desired_height(args.height)
+                .build("Clock"),
+        ));
 
         //match crate::workspaces::Workspaces::builder()
         //    .desired_height(args.height)

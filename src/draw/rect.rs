@@ -178,7 +178,7 @@ impl Rect {
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
-                ctx.put_composite(Point::new(x,y), color);
+                ctx.put_composite(Point::new(x, y), color);
             }
         }
     }

@@ -55,6 +55,15 @@ impl DrawCtx<'_> {
         let array: &mut [u8; 4] = (&mut self.canvas[idx..idx + 4]).try_into().unwrap();
         let existing_color = Color::from_argb8888(array);
 
-        *array = existing_color.composite(color).argb8888();
+        let composite = color.composite(existing_color);
+        *array = composite.argb8888();
+
+        if color == color::CLEAR {
+            assert_eq!(composite, existing_color, "at {pnt}");
+        }
+
+        if color.a == u8::MAX {
+            assert_eq!(composite, color, "at {pnt}");
+        }
     }
 }

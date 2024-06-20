@@ -48,10 +48,10 @@ impl Color {
     pub fn from_argb8888(argb: &[u8; 4]) -> Self {
         let color = u32::from_le_bytes(*argb);
         Self {
-            a: ((color >> 24) & 8) as u8,
-            r: ((color >> 16) & 8) as u8,
-            b: ((color >> 8) & 8) as u8,
-            g: (color & 8) as u8,
+            a: (color >> 24) as u8,
+            r: (color >> 16) as u8,
+            g: (color >> 8) as u8,
+            b: color as u8,
         }
     }
 }
@@ -79,7 +79,10 @@ impl Display for Color {
     }
 }
 
-pub const ALL_COLORS: [Color;16] = [CLEAR, BASE, SURFACE, OVERLAY, MUTED, SUBTLE, TEXT, LOVE, GOLD, ROSE, PINE, FOAM, IRIS, H_LOW, H_MED, H_HIGH];
+pub const ALL_COLORS: [Color; 16] = [
+    CLEAR, BASE, SURFACE, OVERLAY, MUTED, SUBTLE, TEXT, LOVE, GOLD, ROSE, PINE, FOAM, IRIS, H_LOW,
+    H_MED, H_HIGH,
+];
 pub const CLEAR: Color = Color::new(0, 0, 0, 0);
 pub const BASE: Color = Color::new(0x19, 0x17, 0x24, 0xFF);
 pub const SURFACE: Color = Color::new(0x1f, 0x1d, 0x2e, 0xFF);

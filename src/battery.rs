@@ -57,17 +57,17 @@ impl Widget for Battery<'_> {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        self.widgets[0].draw(ctx).unwrap();
+        //self.widgets[0].draw(ctx).unwrap();
         //self.widgets[1].draw(ctx).unwrap();
-        //self.widgets.iter_mut().for_each(|w| {
-        //    if let Err(err) = w.draw(ctx) {
-        //        log::warn!(
-        //            "'{}' | draw :: widget '{}' failed to draw. error={err}",
-        //            self.name,
-        //            w.name()
-        //        );
-        //    }
-        //});
+        self.widgets.iter_mut().for_each(|w| {
+            if let Err(err) = w.draw(ctx) {
+                log::warn!(
+                    "'{}' | draw :: widget '{}' failed to draw. error={err}",
+                    self.name,
+                    w.name()
+                );
+            }
+        });
 
         Ok(())
     }
@@ -116,11 +116,13 @@ impl BatteryBuilder {
 
         let battery_textbox = TextBox::builder()
             .text("")
-            .fg(self.ok_fg)
+            .fg(crate::draw::color::PINE)
             .bg(self.bg)
             .maximize_space(true)
             .desired_text_height(desired_height * 8 / 10)
-            .right_margin(desired_height * 11 / 10)
+            .h_align(Align::End)
+            .v_align(Align::Center)
+            .right_margin(desired_height / 3)
             .build(&(name.to_owned() + " Outline"));
 
         let charging_textbox = TextBox::builder()
@@ -128,6 +130,7 @@ impl BatteryBuilder {
             .fg(self.charging_fg)
             .bg(crate::draw::color::CLEAR)
             .h_align(Align::End)
+            .v_align(Align::Center)
             .maximize_space(true)
             .right_margin(desired_height / 10)
             .build(&(name.to_owned() + " Charging"));
