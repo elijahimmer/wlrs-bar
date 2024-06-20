@@ -4,6 +4,7 @@ pub mod widget;
 
 pub mod app;
 
+pub mod battery;
 pub mod clock;
 pub mod updated_last;
 pub mod workspaces;

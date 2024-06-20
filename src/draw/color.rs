@@ -21,12 +21,38 @@ impl Color {
         }
     }
 
+    /// Returns a solid color by combining a (possibly) transparent color (self)
+    ///     and the base color (onto)
+    pub fn composite(self, onto: Self) -> Self {
+        let ratio = self.a as f32 / 255.0;
+        let ratio_old = 1.0 - ratio;
+        let (r_new, g_new, b_new) = (self.r as f32, self.g as f32, self.b as f32);
+        let (r_old, g_old, b_old) = (onto.r as f32, onto.g as f32, onto.b as f32);
+
+        Self {
+            r: (ratio * r_new + ratio_old * r_old).clamp(0.0, 255.0) as u8,
+            g: (ratio * g_new + ratio_old * g_old).clamp(0.0, 255.0) as u8,
+            b: (ratio * b_new + ratio_old * b_old).clamp(0.0, 255.0) as u8,
+            a: self.a.saturating_add(onto.a),
+        }
+    }
+
     pub fn argb8888(self) -> [u8; 4] {
         let a = (self.a as u32) << 24;
         let r = (self.r as u32) << 16;
         let g = (self.g as u32) << 8;
         let b = self.b as u32;
         (a + r + g + b).to_le_bytes()
+    }
+
+    pub fn from_argb8888(argb: &[u8; 4]) -> Self {
+        let color = u32::from_le_bytes(*argb);
+        Self {
+            a: ((color >> 24) & 8) as u8,
+            r: ((color >> 16) & 8) as u8,
+            b: ((color >> 8) & 8) as u8,
+            g: (color & 8) as u8,
+        }
     }
 }
 
@@ -47,12 +73,14 @@ macro_rules! display_name {
 use std::fmt::{Display, Error as DisplayError, Formatter};
 impl Display for Color {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), DisplayError> {
-        display_name!(f, *self, BASE SURFACE OVERLAY MUTED SUBTLE TEXT LOVE GOLD ROSE PINE FOAM IRIS H_LOW H_MED H_HIGH);
+        display_name!(f, *self, CLEAR BASE SURFACE OVERLAY MUTED SUBTLE TEXT LOVE GOLD ROSE PINE FOAM IRIS H_LOW H_MED H_HIGH);
 
         write!(f, "({:x} {:x} {:x} {:x})", self.r, self.g, self.b, self.a)
     }
 }
 
+pub const ALL_COLORS: [Color;16] = [CLEAR, BASE, SURFACE, OVERLAY, MUTED, SUBTLE, TEXT, LOVE, GOLD, ROSE, PINE, FOAM, IRIS, H_LOW, H_MED, H_HIGH];
+pub const CLEAR: Color = Color::new(0, 0, 0, 0);
 pub const BASE: Color = Color::new(0x19, 0x17, 0x24, 0xFF);
 pub const SURFACE: Color = Color::new(0x1f, 0x1d, 0x2e, 0xFF);
 pub const OVERLAY: Color = Color::new(0x26, 0x23, 0x3a, 0xFF);
@@ -68,3 +96,14 @@ pub const IRIS: Color = Color::new(0xc4, 0xa7, 0xe7, 0xFF);
 pub const H_LOW: Color = Color::new(0x21, 0x20, 0x2e, 0xFF);
 pub const H_MED: Color = Color::new(0x40, 0x3d, 0x52, 0xFF);
 pub const H_HIGH: Color = Color::new(0x52, 0x4f, 0x67, 0xFF);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn composite() {
+        for color in ALL_COLORS {
+            assert_eq!(CLEAR.composite(color), color);
+        }
+    }
+}

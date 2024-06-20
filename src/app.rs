@@ -80,40 +80,53 @@ impl App {
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
         widgets.push(Box::new(
-            crate::clock::Clock::builder()
-                .number_fg(color::ROSE)
-                .spacer_fg(color::PINE)
+            crate::battery::Battery::builder()
                 .bg(color::SURFACE)
+                .full_fg(color::PINE)
+                .charging_fg(color::GOLD)
+                .ok_fg(color::ROSE)
+                .warn_fg(color::LOVE)
                 .desired_height(args.height)
-                .build("Clock"),
+                .desired_width(args.height)
+                .h_align(Align::End)
+                .build("Battery"),
         ));
 
-        match crate::workspaces::Workspaces::builder()
-            .desired_height(args.height)
-            .h_align(Align::Start)
-            .fg(color::ROSE)
-            .bg(color::SURFACE)
-            .active_fg(color::ROSE)
-            .active_bg(color::PINE)
-            .hover_fg(color::GOLD)
-            .hover_bg(color::LOVE)
-            .build("Workspaces")
-        {
-            Ok(w) => widgets.push(Box::new(w)),
-            Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
-        };
+        //widgets.push(Box::new(
+        //    crate::clock::Clock::builder()
+        //        .number_fg(color::ROSE)
+        //        .spacer_fg(color::PINE)
+        //        .bg(color::SURFACE)
+        //        .desired_height(args.height)
+        //        .build("Clock"),
+        //));
 
-        if let Some(time_stamp) = args.updated_last {
-            widgets.push(Box::new(
-                crate::updated_last::UpdatedLast::builder()
-                    .time_stamp(time_stamp)
-                    .h_align(Align::End)
-                    .fg(color::ROSE)
-                    .bg(color::SURFACE)
-                    .desired_height(args.height)
-                    .build("Updated Last"),
-            ))
-        }
+        //match crate::workspaces::Workspaces::builder()
+        //    .desired_height(args.height)
+        //    .h_align(Align::Start)
+        //    .fg(color::ROSE)
+        //    .bg(color::SURFACE)
+        //    .active_fg(color::ROSE)
+        //    .active_bg(color::PINE)
+        //    .hover_fg(color::GOLD)
+        //    .hover_bg(color::LOVE)
+        //    .build("Workspaces")
+        //{
+        //    Ok(w) => widgets.push(Box::new(w)),
+        //    Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
+        //};
+
+        //if let Some(time_stamp) = args.updated_last {
+        //    widgets.push(Box::new(
+        //        crate::updated_last::UpdatedLast::builder()
+        //            .time_stamp(time_stamp)
+        //            .h_align(Align::End)
+        //            .fg(color::ROSE)
+        //            .bg(color::SURFACE)
+        //            .desired_height(args.height)
+        //            .build("Updated Last"),
+        //    ))
+        //}
 
         let mut me = Self {
             //connection,
@@ -412,6 +425,7 @@ impl App {
             .unwrap();
         let stride = self.width as i32 * 4;
 
+        // TODO: Reuse these buffers :)
         let (buffer, canvas) = self
             .pool
             .create_buffer(

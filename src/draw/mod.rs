@@ -46,4 +46,15 @@ impl DrawCtx<'_> {
         let array: &mut [u8; 4] = (&mut self.canvas[idx..idx + 4]).try_into().unwrap();
         *array = color.argb8888();
     }
+
+    pub fn put_composite(&mut self, pnt: Point, color: Color) {
+        debug_assert!(self.rect.contains(pnt));
+
+        let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;
+
+        let array: &mut [u8; 4] = (&mut self.canvas[idx..idx + 4]).try_into().unwrap();
+        let existing_color = Color::from_argb8888(array);
+
+        *array = existing_color.composite(color).argb8888();
+    }
 }
