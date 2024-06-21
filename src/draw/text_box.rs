@@ -3,16 +3,23 @@ use crate::widget::*;
 
 use anyhow::Result;
 use rusttype::{Font, PositionedGlyph};
+use std::num::NonZeroUsize;
 
 type Glyph<'glyphs> = (PositionedGlyph<'glyphs>, Rect);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+enum RedrawState {
+    #[default]
+    None,
+    Full,
+    Partial(NonZeroUsize),
+}
 
 #[derive(Clone)]
 pub struct TextBox<'glyphs> {
     font: &'glyphs Font<'glyphs>,
 
     text: Box<str>,
-    text_to_draw: Option<usize>, // TODO: Change to a full range and if aligned to the right render
-    // from the right back. That'll be fun :)
     name: Box<str>,
 
     fg_drawn: Color,
@@ -37,7 +44,7 @@ pub struct TextBox<'glyphs> {
     desired_text_height: u32,
     desired_width: Option<u32>,
 
-    redraw_full: bool,
+    redraw: RedrawState,
 }
 
 fn render_glyphs<'a>(font: &'a Font<'a>, text: &str, height: u32) -> (Vec<Glyph<'a>>, Point) {
@@ -82,12 +89,14 @@ impl<'a> TextBox<'a> {
             .position(|(new, old)| new != old)
         {
             Some(idx) => {
-                if !self.redraw_full {
-                    self.text_to_draw = Some(idx);
-                } else {
-                    self.text_to_draw = None;
+                self.redraw = match (NonZeroUsize::new(idx), self.redraw) {
+                    (None, _) => RedrawState::Full,
+                    (Some(_), RedrawState::Full) => RedrawState::Full,
+                    (Some(idx), RedrawState::Partial(jdx)) => RedrawState::Partial(idx.min(jdx)),
+                    (Some(idx), RedrawState::None) => RedrawState::Partial(idx),
                 }
             }
+
             None => return,
         }
         self.text = new_text.into();
@@ -114,7 +123,7 @@ impl<'a> TextBox<'a> {
 
     pub fn set_fg(&mut self, fg: Color) {
         if fg != self.fg {
-            self.text_to_draw = Some(0); // only redraw text
+            self.redraw = RedrawState::Full;
             if self.fg_drawn == self.fg {
                 self.fg_drawn = fg;
             }
@@ -124,8 +133,7 @@ impl<'a> TextBox<'a> {
 
     pub fn set_bg(&mut self, bg: Color) {
         if bg != self.bg {
-            self.redraw_full = true;
-            self.text_to_draw = None; // only redraw text
+            self.redraw = RedrawState::Full;
             if self.bg_drawn == self.bg {
                 self.bg_drawn = bg;
             }
@@ -173,17 +181,20 @@ impl Widget for TextBox<'_> {
         width + self.h_margins()
     }
 
-    fn resize(&mut self, rect: Rect) {
-        if rect == self.area {
-            //#[cfg(feature = "textbox-logs")]
-            log::warn!(
-                "'{}' | resize :: resized without a change in area",
-                self.name
-            );
+    fn resize(&mut self, new_area: Rect) {
+        if new_area == self.area {
+            #[cfg(feature = "textbox-logs")]
+            log::debug!("'{}' | resize :: area didn't change", self.name);
             return;
         }
 
-        if rect.size() == self.area.size() {
+        self.redraw = RedrawState::Full;
+        #[cfg(feature = "textbox-logs")]
+        log::trace!("'{}' | resize :: new_area: {new_area}", self.name);
+        let old_area = self.area;
+        self.area = new_area;
+
+        if new_area.size() == old_area.size() {
             #[cfg(feature = "textbox-logs")]
             log::trace!(
                 "'{}' | resize :: box was moved, not resized, not re-rendering text",
@@ -191,10 +202,8 @@ impl Widget for TextBox<'_> {
             );
             return;
         }
-
         #[cfg(feature = "textbox-logs")]
-        log::trace!("'{}' | resize :: rect: {rect}", self.name);
-        self.area = rect;
+        log::trace!("'{}' | resize :: re-rendering text", self.name);
 
         // the maximum area the text can be (while following margins)
         let area_min = self.area.min + Point::new(self.left_margin, self.top_margin);
@@ -204,9 +213,6 @@ impl Widget for TextBox<'_> {
             self.glyphs = None;
             return;
         }
-
-        self.redraw_full = true;
-        self.text_to_draw = None;
 
         let area_max = Rect {
             min: area_min,
@@ -261,14 +267,16 @@ impl Widget for TextBox<'_> {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        assert!(
-            !(self.redraw_full && self.text_to_draw.is_some()),
-            "you cannot have to redraw all and have just a few characters to draw"
-        );
-        let redraw_full = self.redraw_full || ctx.full_redraw;
-        if (self.glyphs_size.is_none() || self.text_to_draw.is_none()) && !redraw_full {
+        if self.glyphs_size.is_none() || self.redraw == RedrawState::None && !ctx.full_redraw {
             return Ok(());
         }
+        #[cfg(feature = "textbox-logs")]
+        log::trace!(
+            "'{}' | draw :: redraw: {:?}, full redraw: {}",
+            self.name,
+            self.redraw,
+            ctx.full_redraw
+        );
 
         let area = self.area;
 
@@ -284,36 +292,43 @@ impl Widget for TextBox<'_> {
         assert!(area_used_size >= glyphs_size);
 
         let glyphs = self.glyphs.as_ref().unwrap();
-        let text_to_draw = self.text_to_draw.unwrap_or(0);
 
-        if redraw_full {
-            #[cfg(feature = "textbox-logs")]
-            log::debug!(
-                "'{}' | draw :: redrawing fully, at {}",
-                self.name,
-                self.area
-            );
-            self.area.draw_composite(self.bg_drawn, ctx);
-            ctx.damage.push(area);
-        } else if text_to_draw == 0 {
-            area_used.draw_composite(self.bg_drawn, ctx);
-            ctx.damage.push(area_used);
-        } else {
-            let mut area_to_fill = area_used;
-            area_to_fill.min.x += glyphs[text_to_draw - 1]
-                .0
-                .unpositioned()
-                .h_metrics()
-                .advance_width
-                .ceil() as u32;
+        let glyph_skip_count = match self.redraw {
+            RedrawState::Full | RedrawState::None => {
+                #[cfg(feature = "textbox-logs")]
+                log::debug!(
+                    "'{}' | draw :: redrawing fully, at {}",
+                    self.name,
+                    self.area
+                );
+                self.area.draw_composite(self.bg_drawn, ctx);
+                ctx.damage.push(area);
+                0
+            }
+            RedrawState::Partial(idx) => {
+                #[cfg(feature = "textbox-logs")]
+                log::debug!(
+                    "'{}' | draw :: Partial Redraw from idx: {}",
+                    self.name,
+                    usize::from(idx),
+                );
+                let mut area_to_fill = area_used;
+                area_to_fill.min.x += glyphs[usize::from(idx) - 1]
+                    .0
+                    .unpositioned()
+                    .h_metrics()
+                    .advance_width
+                    .ceil() as u32;
 
-            area_to_fill.draw_composite(self.bg_drawn, ctx);
-            ctx.damage.push(area_to_fill);
-        }
+                area_to_fill.draw_composite(self.bg_drawn, ctx);
+                ctx.damage.push(area_to_fill);
+                idx.into()
+            }
+        };
 
         glyphs
             .iter()
-            .skip(text_to_draw)
+            .skip(glyph_skip_count)
             .for_each(|(gly, bb_unshifted)| {
                 #[cfg(feature = "textbox-logs")]
                 log::trace!("'{}' | draw :: bb-unshifted: {bb_unshifted}", self.name);
@@ -338,7 +353,10 @@ impl Widget for TextBox<'_> {
                         (&mut ctx.canvas[idx..idx + 4]).try_into().unwrap();
 
                     let existing_color = Color::from_argb8888(screen_bytes);
-                    let color = self.bg.composite(existing_color).blend(self.fg_drawn, v);
+                    let color = self
+                        .bg_drawn
+                        .composite(existing_color)
+                        .blend(self.fg_drawn, v);
 
                     *screen_bytes = color.argb8888();
 
@@ -367,9 +385,7 @@ impl Widget for TextBox<'_> {
         //#[cfg(feature = "textbox-outlines-text")]
         //ctx.damage.push(text_area);
 
-        self.text_to_draw = None;
-        self.redraw_full = false;
-        //self.redraw_text = false;
+        self.redraw = RedrawState::None;
 
         Ok(())
     }
@@ -383,14 +399,12 @@ impl Widget for TextBox<'_> {
         assert!(self.area.contains(point));
 
         if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
-            assert!(!self.redraw_full, "shouldn't happen");
-            self.text_to_draw = Some(0);
+            self.redraw = RedrawState::Full;
             self.fg_drawn = c;
         }
 
         if let Some(c) = self.hover_bg.filter(|&c| c != self.bg_drawn) {
-            self.redraw_full = true;
-            self.text_to_draw = None;
+            self.redraw = RedrawState::Full;
             self.bg_drawn = c;
         }
 
@@ -401,14 +415,12 @@ impl Widget for TextBox<'_> {
         log::debug!("'{}' | motion_leave :: Point: {point}", self.name);
 
         if self.fg != self.fg_drawn {
-            assert!(!self.redraw_full, "shouldn't happen");
-            self.text_to_draw = Some(0);
+            self.redraw = RedrawState::Full;
             self.fg_drawn = self.fg;
         }
 
         if self.bg != self.bg_drawn {
-            self.redraw_full = true;
-            self.text_to_draw = None;
+            self.redraw = RedrawState::Full;
             self.bg_drawn = self.bg;
         }
 
@@ -512,12 +524,10 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
             h_align: self.h_align,
             v_align: self.v_align,
 
-            redraw_full: true,
-
             area: Default::default(),
             glyphs: Default::default(),
             glyphs_size: Default::default(),
-            text_to_draw: Default::default(),
+            redraw: Default::default(),
         }
     }
 }

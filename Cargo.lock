@@ -98,6 +98,7 @@ name = "bar-wlrs"
 version = "2024.6.18"
 dependencies = [
  "anyhow",
+ "bitflags",
  "chrono",
  "clap",
  "lazy_static",

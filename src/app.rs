@@ -79,6 +79,18 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
+        widgets.push(Box::new(
+            crate::draw::icon::Icon::builder()
+                .fg(color::ROSE)
+                .bg(color::CLEAR)
+                //.icon('󱐋')
+                .icon('')
+                .font(&FONT)
+                .desired_text_height(args.height * 5 / 7)
+                .desired_width(args.height * 2)
+                .build("text"),
+        ));
+
         //widgets.push(Box::new(
         //    crate::battery::Battery::builder()
         //        .bg(color::SURFACE)
@@ -92,6 +104,7 @@ impl App {
         //        .build("Battery"),
         //));
 
+        #[cfg(feature = "clock")]
         widgets.push(Box::new(
             crate::clock::Clock::builder()
                 .number_fg(color::ROSE)
@@ -101,32 +114,34 @@ impl App {
                 .build("Clock"),
         ));
 
-        //match crate::workspaces::Workspaces::builder()
-        //    .desired_height(args.height)
-        //    .h_align(Align::Start)
-        //    .fg(color::ROSE)
-        //    .bg(color::SURFACE)
-        //    .active_fg(color::ROSE)
-        //    .active_bg(color::PINE)
-        //    .hover_fg(color::GOLD)
-        //    .hover_bg(color::LOVE)
-        //    .build("Workspaces")
-        //{
-        //    Ok(w) => widgets.push(Box::new(w)),
-        //    Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
-        //};
+        #[cfg(feature = "workspaces")]
+        match crate::workspaces::Workspaces::builder()
+            .desired_height(args.height)
+            .h_align(Align::Start)
+            .fg(color::ROSE)
+            .bg(color::SURFACE)
+            .active_fg(color::ROSE)
+            .active_bg(color::PINE)
+            .hover_fg(color::GOLD)
+            .hover_bg(color::H_MED)
+            .build("Workspaces")
+        {
+            Ok(w) => widgets.push(Box::new(w)),
+            Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
+        };
 
-        //if let Some(time_stamp) = args.updated_last {
-        //    widgets.push(Box::new(
-        //        crate::updated_last::UpdatedLast::builder()
-        //            .time_stamp(time_stamp)
-        //            .h_align(Align::End)
-        //            .fg(color::ROSE)
-        //            .bg(color::SURFACE)
-        //            .desired_height(args.height)
-        //            .build("Updated Last"),
-        //    ))
-        //}
+        #[cfg(feature = "updated-last")]
+        if let Some(time_stamp) = args.updated_last {
+            widgets.push(Box::new(
+                crate::updated_last::UpdatedLast::builder()
+                    .time_stamp(time_stamp)
+                    .h_align(Align::End)
+                    .fg(color::ROSE)
+                    .bg(color::SURFACE)
+                    .desired_height(args.height)
+                    .build("Updated Last"),
+            ))
+        }
 
         let mut me = Self {
             //connection,

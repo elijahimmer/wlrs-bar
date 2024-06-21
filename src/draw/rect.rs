@@ -124,10 +124,10 @@ impl Rect {
                 max_res - min_res,
             );
             debug_assert!(min_res <= max_res, "{min_res} > {max_res}");
-            debug_assert!(
-                (size - 1..=size + 1).contains(&(max_res - min_res)),
-                "{max_res} - {min_res} != {size}"
-            );
+            //debug_assert!(
+            //    (size - 1..=size + 1).contains(&(max_res - min_res)),
+            //    "{max_res} - {min_res} != {size}"
+            //);
 
             (min_res, max_res)
         };

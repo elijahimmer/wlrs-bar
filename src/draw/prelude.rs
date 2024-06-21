@@ -1,4 +1,5 @@
 pub use super::color::Color;
+pub use super::icon::{Icon, IconBuilder};
 pub use super::point::Point;
 pub use super::rect::Rect;
 pub use super::text_box::{TextBox, TextBoxBuilder};

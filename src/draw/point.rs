@@ -26,11 +26,11 @@ impl Point {
     }
 
     pub fn x_shift(self, offset: i32) -> Self {
-        Self::new((self.x as i32 + offset) as u32, self.y)
+        Self::new((self.x as i32 + offset).try_into().unwrap(), self.y)
     }
 
     pub fn y_shift(self, offset: i32) -> Self {
-        Self::new(self.x, (self.y as i32 + offset) as u32)
+        Self::new(self.x, (self.y as i32 + offset).try_into().unwrap())
     }
 }
 
@@ -38,12 +38,16 @@ macro_rules! for_each_primative {
     ($($t:ty)+) => ($(
         impl From<($t, $t)> for Point {
             fn from((x, y): ($t, $t)) -> Self {
-                Self::new(x as u32, y as u32)
+                assert!(0 as $t <= x, "x: {x}");
+                assert!(0 as $t <= y, "y: {y}");
+                Self::new(x as u32, y.clamp(0 as $t, (u32::MAX) as $t) as u32)
             }
         }
 
         impl From<rusttype::Point<$t>> for Point {
             fn from(val: rusttype::Point<$t>) -> Self {
+                assert!(0 as $t <= val.x, "x: {}", val.x);
+                assert!(0 as $t <= val.y, "y: {}", val.y);
                 Self::new(val.x as u32, val.y as u32)
             }
         }
@@ -86,6 +90,30 @@ impl Sub<Self> for Point {
         Point {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
+        }
+    }
+}
+
+use std::ops::Mul;
+impl Mul<u32> for Point {
+    type Output = Self;
+
+    fn mul(self, rhs: u32) -> Self::Output {
+        Point {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+use std::ops::Div;
+impl Div<u32> for Point {
+    type Output = Self;
+
+    fn div(self, rhs: u32) -> Self::Output {
+        Point {
+            x: self.x / rhs,
+            y: self.y / rhs,
         }
     }
 }

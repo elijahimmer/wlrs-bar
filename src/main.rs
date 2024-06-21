@@ -16,6 +16,7 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// The timestamp of the last update
+    #[cfg(feature = "updated-last")]
     #[arg(short, long)]
     updated_last: Option<i64>,
 

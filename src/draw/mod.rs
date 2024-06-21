@@ -1,4 +1,5 @@
 pub mod color;
+pub mod icon;
 pub mod point;
 pub mod prelude;
 pub mod rect;

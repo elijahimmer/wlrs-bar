@@ -10,17 +10,32 @@ use anyhow::Result;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::JoinHandle;
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct RedrawState: u8 {
+        /// just tell textboxes to redraw
+        const Normal = 0b001;
+        /// should re-place the widgets
+        const Replace = 0b010;
+        /// fill in space after the text-boxes
+        const FillAfter = 0b100;
+
+        const ReplaceNormal = Self::Replace.bits() | Self::Normal.bits();
+        const ReplaceFill = Self::Replace.bits() | Self::FillAfter.bits();
+    }
+}
+
 pub struct Workspaces<'a> {
     name: Box<str>,
     desired_height: u32,
     area: Rect,
     h_align: Align,
     v_align: Align,
-    should_resize: bool,
     fg: Color,
     bg: Color,
     active_fg: Color,
     active_bg: Color,
+    redraw: RedrawState,
 
     last_hover: Option<(usize, Point)>,
 
@@ -62,11 +77,12 @@ impl Workspaces<'_> {
         }
 
         self.worker_recv.try_iter().for_each(|m| {
+            #[cfg(feature = "workspaces-log")]
             log::trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.name);
             match m {
                 WorkerMsg::WorkspaceReset => {
                     self.workspaces.clear();
-                    self.should_resize = true;
+                    self.redraw |= RedrawState::Normal;
                 }
                 WorkerMsg::WorkspaceSetActive(id) => {
                     if let Some((_id, w)) = self
@@ -77,7 +93,14 @@ impl Workspaces<'_> {
                     {
                         w.set_fg(self.fg);
                         w.set_bg(self.bg);
+                    } else {
+                        #[cfg(feature = "workspaces-log")]
+                        log::warn!(
+                            "'{}' | update_workspaces :: previous active workspace doesn't exist",
+                            self.name
+                        );
                     }
+
                     self.active_workspace = id;
                     if let Some((_id, w)) = self
                         .workspaces
@@ -87,7 +110,14 @@ impl Workspaces<'_> {
                     {
                         w.set_fg(self.active_fg);
                         w.set_bg(self.active_bg);
+                    } else {
+                        #[cfg(feature = "workspaces-log")]
+                        log::warn!(
+                            "'{}' | update_workspaces :: new active workspace doesn't exist",
+                            self.name
+                        );
                     }
+                    self.redraw |= RedrawState::Normal;
                 }
                 WorkerMsg::WorkspaceCreate(id) => {
                     if let Err(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
@@ -103,20 +133,75 @@ impl Workspaces<'_> {
                             .text(wk_name.as_str())
                             .build(&format!("{} {wk_name}", self.name));
                         self.workspaces.insert(idx, (id, wk));
+                    } else {
+                        #[cfg(feature = "workspaces-log")]
+                        log::warn!(
+                            "'{}' | update_workspaces :: workspace created that already exists",
+                            self.name
+                        );
                     }
 
-                    self.should_resize = true;
+                    self.redraw |= RedrawState::ReplaceNormal;
                 }
                 WorkerMsg::WorkspaceDestroy(id) => {
                     if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
                         self.workspaces.remove(idx);
+                    } else {
+                        #[cfg(feature = "workspaces-log")]
+                        log::debug!(
+                            "'{}' | update_workspaces :: workspace destroyed that doesn't exists",
+                            self.name
+                        );
                     }
-                    self.should_resize = true;
+                    self.redraw |= RedrawState::ReplaceFill;
                 }
             }
         });
 
         Ok(())
+    }
+
+    fn replace_widgets(&mut self) {
+        self.redraw -= RedrawState::Replace;
+        let Point { y: height, .. } = self.area.size();
+
+        let mut wk_area = self.area;
+        wk_area.max.x = wk_area.min.x + height;
+        for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
+            log::trace!(
+                "'{}' | resize :: wk_area: {wk_area}, size: {}",
+                self.name,
+                wk_area.size()
+            );
+
+            assert!(self.area.contains_rect(wk_area));
+            assert!(wk_area.size() == Point::new(height, height));
+
+            let old_area = w.area();
+            w.resize(wk_area);
+
+            if let Some((_hover_idx, hover_point)) =
+                self.last_hover.filter(|(_hover_idx, hover_point)| {
+                    old_area.contains(*hover_point) && !wk_area.contains(*hover_point)
+                })
+            {
+                w.motion_leave(hover_point).unwrap();
+            } else if let Some((_hover_idx, hover_point)) = self
+                .last_hover
+                .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
+            {
+                #[cfg(feature = "workspaces-log")]
+                log::trace!(
+                    "'{}' | resize :: widget '{}' is new hover target",
+                    self.name,
+                    w.name()
+                );
+                w.motion(hover_point).unwrap();
+                self.last_hover = Some((idx, hover_point));
+            }
+
+            wk_area = wk_area.x_shift(height as i32);
+        }
     }
 }
 
@@ -162,61 +247,40 @@ impl Widget for Workspaces<'_> {
             .max(height * 12) // 12 workspaces worth- that should be enough
     }
     fn resize(&mut self, area: Rect) {
-        let Point {
-            x: _width,
-            y: height,
-        } = area.size();
-
-        let mut wk_area = area;
-        wk_area.max.x = wk_area.min.x + height;
-        for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
-            //log::trace!(
-            //    "'{}' | resize :: wk_area: {wk_area}, size: {}",
-            //    self.name,
-            //    wk_area.size()
-            //);
-            debug_assert!(area.contains_rect(wk_area));
-            debug_assert!(wk_area.size() == Point::new(height, height));
-
-            let old_area = w.area();
-            w.resize(wk_area);
-
-            if let Some((_hover_idx, hover_point)) =
-                self.last_hover.filter(|(_hover_idx, hover_point)| {
-                    old_area.contains(*hover_point) && !wk_area.contains(*hover_point)
-                })
-            {
-                w.motion_leave(hover_point).unwrap();
-            } else if let Some((_hover_idx, hover_point)) = self
-                .last_hover
-                .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
-            {
-                log::trace!(
-                    "'{}' | resize :: widget '{}' is new hover target",
-                    self.name,
-                    w.name()
-                );
-                w.motion(hover_point).unwrap();
-                self.last_hover = Some((idx, hover_point));
-            }
-
-            wk_area = wk_area.x_shift(height as i32);
-        }
         self.area = area;
+        self.redraw |= RedrawState::FillAfter;
+
+        self.replace_widgets();
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         self.update_workspaces()?;
-        let redraw = ctx.full_redraw; // TODO: Fix so we don't redraw fully each time
-        if self.should_resize || redraw {
-            ctx.full_redraw = true;
-            self.area.draw(self.bg, ctx);
-            self.resize(self.area);
-            self.should_resize = false;
+
+        if self.redraw.contains(RedrawState::Replace) {
+            self.replace_widgets();
         }
 
+        if ctx.full_redraw {
+            self.area.draw(self.bg, ctx);
+        } else if self.redraw.is_empty() {
+            return Ok(());
+        } else if self.redraw.contains(RedrawState::FillAfter) {
+            let area_to_fill = self.workspaces.last().map_or(self.area, |(_id, w)| {
+                Rect::new(Point::new(w.area().max.x, self.area.min.y), self.area.max)
+            });
+            area_to_fill.draw(self.bg, ctx);
+            ctx.damage.push(area_to_fill);
+        } else {
+            assert!(self.redraw.contains(RedrawState::Normal));
+        }
+
+        #[cfg(feature = "workspaces-log")]
+        log::trace!("'{}' | draw :: Redraw State: {:?}", self.name, self.redraw);
+
+        self.redraw = RedrawState::empty();
+
         self.workspaces.iter_mut().for_each(|(_idx, w)| {
-            debug_assert!(self.area.contains_rect(w.area()));
+            assert!(self.area.contains_rect(w.area()));
             if let Err(err) = w.draw(ctx) {
                 log::warn!(
                     "'{}', widget '{}' failed to draw. error={err}",
@@ -224,9 +288,10 @@ impl Widget for Workspaces<'_> {
                     w.name()
                 );
             }
+            #[cfg(feature = "workspaces-outlines")]
+            w.area().draw_outline(crate::draw::color::IRIS, ctx);
         });
 
-        ctx.full_redraw = redraw;
         Ok(())
     }
 
@@ -236,6 +301,8 @@ impl Widget for Workspaces<'_> {
         }
 
         if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
+            #[cfg(feature = "workspaces-log")]
+            log::debug!("'{}' | click :: clicked: {}", self.name, _w.name());
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
         }
 
@@ -264,6 +331,7 @@ impl Widget for Workspaces<'_> {
         }
 
         self.last_hover = moved_in_idx;
+        self.redraw |= RedrawState::Normal;
 
         Ok(())
     }
@@ -275,6 +343,7 @@ impl Widget for Workspaces<'_> {
         {
             w.motion_leave(point).unwrap();
         }
+        self.redraw |= RedrawState::Normal;
 
         Ok(())
     }
@@ -349,7 +418,7 @@ impl WorkspacesBuilder {
             last_hover: Default::default(),
             workspaces: Default::default(),
             area: Default::default(),
-            should_resize: false,
+            redraw: RedrawState::empty(),
         })
     }
 }
