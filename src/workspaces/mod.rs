@@ -78,7 +78,7 @@ impl Workspaces<'_> {
         }
 
         self.worker_recv.try_iter().for_each(|m| {
-            #[cfg(feature = "workspaces-log")]
+            #[cfg(feature = "workspaces-logs")]
             log::trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.name);
             match m {
                 WorkerMsg::WorkspaceReset => {
@@ -95,7 +95,7 @@ impl Workspaces<'_> {
                         w.set_fg(self.fg);
                         w.set_bg(self.bg);
                     } else {
-                        #[cfg(feature = "workspaces-log")]
+                        #[cfg(feature = "workspaces-logs")]
                         log::warn!(
                             "'{}' | update_workspaces :: previous active workspace doesn't exist",
                             self.name
@@ -112,7 +112,7 @@ impl Workspaces<'_> {
                         w.set_fg(self.active_fg);
                         w.set_bg(self.active_bg);
                     } else {
-                        #[cfg(feature = "workspaces-log")]
+                        #[cfg(feature = "workspaces-logs")]
                         log::warn!(
                             "'{}' | update_workspaces :: new active workspace doesn't exist",
                             self.name
@@ -135,7 +135,7 @@ impl Workspaces<'_> {
                             .build(&format!("{} {wk_name}", self.name));
                         self.workspaces.insert(idx, (id, wk));
                     } else {
-                        #[cfg(feature = "workspaces-log")]
+                        #[cfg(feature = "workspaces-logs")]
                         log::warn!(
                             "'{}' | update_workspaces :: workspace created that already exists",
                             self.name
@@ -148,7 +148,7 @@ impl Workspaces<'_> {
                     if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
                         self.workspaces.remove(idx);
                     } else {
-                        #[cfg(feature = "workspaces-log")]
+                        #[cfg(feature = "workspaces-logs")]
                         log::debug!(
                             "'{}' | update_workspaces :: workspace destroyed that doesn't exists",
                             self.name
@@ -169,6 +169,7 @@ impl Workspaces<'_> {
         let mut wk_area = self.area;
         wk_area.max.x = wk_area.min.x + height;
         for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
+            #[cfg(feature = "workspaces-logs")]
             log::trace!(
                 "'{}' | resize :: wk_area: {wk_area}, size: {}",
                 self.name,
@@ -197,7 +198,7 @@ impl Workspaces<'_> {
                 .last_hover
                 .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
             {
-                #[cfg(feature = "workspaces-log")]
+                #[cfg(feature = "workspaces-logs")]
                 log::trace!(
                     "'{}' | resize :: widget '{}' is new hover target",
                     self.name,
@@ -296,19 +297,21 @@ impl Widget for Workspaces<'_> {
             assert!(self.redraw.contains(RedrawState::Normal));
         }
 
-        #[cfg(feature = "workspaces-log")]
+        #[cfg(feature = "workspaces-logs")]
         log::trace!("'{}' | draw :: Redraw State: {:?}", self.name, self.redraw);
 
         self.redraw = RedrawState::empty();
 
         self.workspaces.iter_mut().for_each(|(_idx, w)| {
             assert!(self.area.contains_rect(w.area()));
-            if let Err(err) = w.draw(ctx) {
-                log::warn!(
-                    "'{}', widget '{}' failed to draw. error={err}",
-                    self.name,
-                    w.name()
-                );
+            if w.should_redraw() {
+                if let Err(err) = w.draw(ctx) {
+                    log::warn!(
+                        "'{}', widget '{}' failed to draw. error={err}",
+                        self.name,
+                        w.name()
+                    );
+                }
             }
             #[cfg(feature = "workspaces-outlines")]
             w.area().draw_outline(crate::draw::color::IRIS, ctx);
@@ -323,7 +326,7 @@ impl Widget for Workspaces<'_> {
         }
 
         if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
-            #[cfg(feature = "workspaces-log")]
+            #[cfg(feature = "workspaces-logs")]
             log::debug!("'{}' | click :: clicked: {}", self.name, _w.name());
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
         }

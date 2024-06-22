@@ -50,15 +50,15 @@ progress-outlines = []
 debug-rect-draw = []
 debug-rect-place-at = []
 
-clock-all = ["clock", "clock-log"]
-clock-log = []
+clock-all = ["clock", "clock-logs"]
+clock-logs = []
 
-workspaces-all = ["workspaces", "workspaces-log", "workspaces-outlines"]
-workspaces-log = []
+workspaces-all = ["workspaces", "workspaces-logs", "workspaces-outlines"]
+workspaces-logs = []
 workspaces-outlines = []
 
-updated-last-all = ["updated-last", "updated-last-log"]
-updated-last-log = []
+updated-last-all = ["updated-last", "updated-last-logs"]
+updated-last-logs = []
 
-battery-all = ["battery", "battery-log"]
-battery-log = []
+battery-all = ["battery", "battery-logs"]
+battery-logs = []

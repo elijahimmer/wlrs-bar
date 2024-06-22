@@ -124,8 +124,8 @@ pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect) {
 
         left.max.x -= rect.width() / 2;
         right.min.x += rect.width() / 2;
-        debug_assert!(left.min.x <= left.max.x);
-        debug_assert!(right.min.x <= right.max.x);
+        assert!(left.min.x <= left.max.x);
+        assert!(right.min.x <= right.max.x);
     };
     log::trace!("center_widgets :: left: {left}, right: {right}");
 

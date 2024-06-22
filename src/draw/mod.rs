@@ -31,7 +31,7 @@ pub struct DrawCtx<'ctx> {
 
 impl DrawCtx<'_> {
     pub fn put(&mut self, pnt: Point, color: Color) {
-        debug_assert!(self.rect.contains(pnt));
+        assert!(self.rect.contains(pnt));
 
         let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;
 
@@ -40,7 +40,7 @@ impl DrawCtx<'_> {
     }
 
     pub fn put_composite(&mut self, pnt: Point, color: Color) {
-        debug_assert!(self.rect.contains(pnt));
+        assert!(self.rect.contains(pnt));
 
         let idx: usize = 4 * (pnt.x + pnt.y * self.rect.width()) as usize;
 
