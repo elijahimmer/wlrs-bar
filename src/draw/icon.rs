@@ -11,9 +11,6 @@ pub struct Icon<'glyph> {
     icon: char,
     name: Box<str>,
 
-    fg_drawn: Color,
-    bg_drawn: Color,
-
     fg: Color,
     bg: Color,
 
@@ -220,6 +217,7 @@ impl Widget for Icon<'_> {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+        self.should_redraw = false;
         if self.glyph.is_none() {
             return Ok(());
         }
@@ -234,6 +232,9 @@ impl Widget for Icon<'_> {
             *size
         );
 
+        self.area.draw(self.bg, ctx);
+        ctx.damage.push(self.area);
+
         let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
 
         #[cfg(feature = "icon-logs")]
@@ -246,7 +247,7 @@ impl Widget for Icon<'_> {
                 "glyph not contained in area: {}, point: {point}",
                 self.area
             );
-            let color = self.bg_drawn.blend(self.fg_drawn, v);
+            let color = self.bg.blend(self.fg, v);
 
             ctx.put_composite(point, color);
         });
@@ -363,8 +364,6 @@ impl<'glyph> IconBuilder<'glyph> {
                 .clone()
                 .unwrap_or_else(|| panic!("'{}' no font provided", name)),
             icon: self.icon,
-            fg_drawn: self.fg,
-            bg_drawn: self.bg,
             fg: self.fg,
             bg: self.bg,
             desired_height: self.desired_height,

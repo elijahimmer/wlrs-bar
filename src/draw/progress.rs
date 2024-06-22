@@ -149,7 +149,9 @@ impl Widget for Progress {
         //if let RedrawState::Append(lines) = redraw {
         //    todo!()
         //} else {
+        ctx.damage.push(self.area);
         self.area.draw_composite(self.bg, ctx);
+
         self.area_used.draw_composite(self.unfilled_color, ctx);
 
         let width_not_filled = (self.area_used.width() as f32 * self.ratio_unfilled) as u32;

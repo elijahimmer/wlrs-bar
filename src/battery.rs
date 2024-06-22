@@ -32,6 +32,7 @@ pub struct Battery<'a> {
 
     status: BatteryStatus,
 
+    bg_color: Color,
     full_color: Color,
     charging_color: Color,
     normal_color: Color,
@@ -46,11 +47,11 @@ impl Battery<'_> {
 
     pub fn update(&mut self) -> Result<()> {
         let mut energy_full_file = self.battery_path.clone();
-        energy_full_file.push("/energy_full");
+        energy_full_file.push("energy_full");
         let mut energy_now_file = self.battery_path.clone();
-        energy_now_file.push("/energy_now");
+        energy_now_file.push("energy_now");
         let mut status_file = self.battery_path.clone();
-        status_file.push("/status");
+        status_file.push("status");
 
         let full: f32 = std::fs::read_to_string(&energy_full_file)?.trim().parse()?;
         let now: f32 = std::fs::read_to_string(&energy_now_file)?.trim().parse()?;
@@ -67,7 +68,7 @@ impl Battery<'_> {
             "Critical" => BatteryStatus::Critical,
             "Charging" => BatteryStatus::Charging,
             "Warn" => BatteryStatus::Warn,
-            "Not Charging" | "Full" => BatteryStatus::Full,
+            "Not charging" | "Full" => BatteryStatus::Full,
             _ => {
                 log::warn!(
                     "'{}' | update :: unknown battery status: '{status}'",
@@ -77,19 +78,20 @@ impl Battery<'_> {
             }
         };
 
-        if status != self.status {
-            let c = match status {
-                BatteryStatus::Full => self.full_color,
-                BatteryStatus::Charging => self.charging_color,
-                BatteryStatus::Normal => self.normal_color,
-                BatteryStatus::Warn => self.warn_color,
-                BatteryStatus::Critical => self.critical_color,
-            };
+        //if status != self.status {
+        let c = match status {
+            BatteryStatus::Full => self.full_color,
+            BatteryStatus::Charging => self.charging_color,
+            BatteryStatus::Normal => self.normal_color,
+            BatteryStatus::Warn => self.warn_color,
+            BatteryStatus::Critical => self.critical_color,
+        };
 
-            self.progress.set_filled_color(c);
-            self.battery.set_fg(c);
-            self.status = status;
-        }
+        self.progress.set_filled_color(c);
+        self.battery.set_fg(c);
+        self.status = status;
+        //log::trace!("'{}' | update :: color: {c}", self.name);
+        //}
 
         self.progress.set_progress(charge);
 
@@ -130,6 +132,8 @@ impl Widget for Battery<'_> {
     }
 
     fn should_redraw(&mut self) -> bool {
+        self.update().unwrap();
+
         self.progress.should_redraw()
             || self.battery.should_redraw()
             || if self.status == BatteryStatus::Charging {
@@ -140,10 +144,12 @@ impl Widget for Battery<'_> {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        self.update()?;
+        log::info!("drwaing");
+        self.area.draw(self.bg_color, ctx);
         if self.progress.should_redraw() {
             self.battery.draw(ctx)?;
             self.progress.draw(ctx)?;
+            log::trace!("status: {:?}", self.status);
             if self.status == BatteryStatus::Charging {
                 self.charging.draw(ctx)?;
             }
@@ -206,7 +212,7 @@ impl<'font> BatteryBuilder<'font> {
             .font(font.clone())
             .icon('')
             .fg(self.normal_color)
-            .bg(color::CLEAR)
+            .bg(self.bg)
             .h_align(Align::End)
             .v_align(Align::Center)
             .right_margin(0.12)
@@ -252,6 +258,8 @@ impl<'font> BatteryBuilder<'font> {
             desired_height,
             h_align: self.h_align,
             v_align: self.v_align,
+
+            bg_color: self.bg,
             full_color: self.full_color,
             charging_color: self.charging_color,
             normal_color: self.normal_color,
