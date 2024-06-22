@@ -14,11 +14,15 @@ pub mod updated_last;
 pub mod workspaces;
 
 use clap::Parser;
+use std::path::PathBuf;
 
 /// A Hyprland Status Bar for me :)
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
+    #[arg(long)]
+    font: Option<PathBuf>,
+
     /// The timestamp of the last update
     #[cfg(feature = "updated-last")]
     #[arg(short, long)]
@@ -26,7 +30,7 @@ pub struct Args {
 
     #[cfg(feature = "battery")]
     #[arg(short, long)]
-    battery_path: Option<std::path::PathBuf>,
+    battery_path: Option<PathBuf>,
 
     /// how heigh the bar should be
     #[arg(long, default_value_t = 28)]

@@ -7,6 +7,7 @@ use utils::WorkspaceID;
 use worker::{work, ManagerMsg, WorkerMsg};
 
 use anyhow::Result;
+use rusttype::Font;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::JoinHandle;
 
@@ -49,7 +50,7 @@ pub struct Workspaces<'a> {
 }
 
 impl Workspaces<'_> {
-    pub fn builder() -> WorkspacesBuilder {
+    pub fn builder<'a>() -> WorkspacesBuilder<'a> {
         Default::default()
     }
 
@@ -358,8 +359,9 @@ impl Widget for Workspaces<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct WorkspacesBuilder {
+#[derive(Clone, Debug, Default)]
+pub struct WorkspacesBuilder<'font> {
+    font: Option<Font<'font>>,
     desired_height: u32,
     h_align: Align,
     v_align: Align,
@@ -371,24 +373,31 @@ pub struct WorkspacesBuilder {
     hover_bg: Color,
 }
 
-impl WorkspacesBuilder {
+impl<'font> WorkspacesBuilder<'font> {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
+        Font<'font>, font;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg active_fg active_bg hover_fg hover_bg;
     }
 
-    pub fn build<'a>(&self, name: &str) -> Result<Workspaces<'a>> {
+    pub fn build(&self, name: &str) -> Result<Workspaces<'font>> {
         log::info!(
             "'{name}' | Initializing with height: {}",
             self.desired_height
         );
 
+        let font = self
+            .font
+            .clone()
+            .unwrap_or_else(|| panic!("'{}' A font must be provided.", name));
+
         let workspace_builder = TextBox::builder()
+            .font(font)
             .fg(self.fg)
             .bg(self.bg)
             .hover_fg(self.hover_fg)

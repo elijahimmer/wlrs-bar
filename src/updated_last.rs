@@ -3,16 +3,17 @@ use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
+use rusttype::Font;
 
-pub struct UpdatedLast<'a> {
+pub struct UpdatedLast<'font> {
     name: Box<str>,
     time: DateTime<Utc>,
-    text: TextBox<'a>,
+    text: TextBox<'font>,
     last_text_set: Box<str>,
 }
 
 impl UpdatedLast<'_> {
-    pub fn builder() -> UpdatedLastBuilder {
+    pub fn builder<'a>() -> UpdatedLastBuilder<'a> {
         Default::default()
     }
 }
@@ -105,7 +106,8 @@ fn label_from_time(delta_time: TimeDelta) -> String {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct UpdatedLastBuilder {
+pub struct UpdatedLastBuilder<'font> {
+    font: Option<Font<'font>>,
     time_stamp: i64,
     desired_height: Option<u32>,
     h_align: Align,
@@ -114,27 +116,34 @@ pub struct UpdatedLastBuilder {
     bg: Color,
 }
 
-impl UpdatedLastBuilder {
+impl<'font> UpdatedLastBuilder<'font> {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
+        Font<'font>, font;
         i64, time_stamp;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg;
     }
 
-    pub fn build<'a>(&self, name: &str) -> UpdatedLast<'a> {
+    pub fn build(&self, name: &str) -> UpdatedLast<'font> {
         log::info!(
             "'{name}' :: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
+        let font = self
+            .font
+            .clone()
+            .unwrap_or_else(|| panic!("'{}' A font must be provided", name));
+
         let time = chrono::DateTime::from_timestamp(self.time_stamp, 0)
             .unwrap_or(chrono::DateTime::UNIX_EPOCH);
 
         let text = TextBox::builder()
+            .font(font)
             .v_align(self.v_align)
             .h_align(self.h_align)
             .right_margin(self.desired_height.unwrap_or(0) / 5)

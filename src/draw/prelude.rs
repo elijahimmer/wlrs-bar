@@ -4,4 +4,4 @@ pub use super::point::{self, Point};
 pub use super::progress::{self, Progress, ProgressBuilder};
 pub use super::rect::{self, Rect};
 pub use super::text_box::{self, TextBox, TextBoxBuilder};
-pub use super::{Align, Direction, DrawCtx, FONT};
+pub use super::{Align, Direction, DrawCtx, FONT_DATA};

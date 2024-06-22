@@ -360,12 +360,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -929,13 +923,12 @@ checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
 
 [[package]]
 name = "wlrs-bar"
-version = "2024.6.18"
+version = "2024.6.22"
 dependencies = [
  "anyhow",
  "bitflags",
  "chrono",
  "clap",
- "lazy_static",
  "log",
  "pretty_env_logger",
  "rusttype",

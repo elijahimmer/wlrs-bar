@@ -2,7 +2,7 @@ use crate::draw::*;
 use crate::widget::*;
 
 use anyhow::Result;
-use rusttype::{Font, PositionedGlyph};
+use rusttype::{Font, PositionedGlyph, Scale};
 use std::num::NonZeroUsize;
 
 type Glyph<'glyphs> = (PositionedGlyph<'glyphs>, Rect);
@@ -17,7 +17,7 @@ enum RedrawState {
 
 #[derive(Clone)]
 pub struct TextBox<'glyphs> {
-    font: &'glyphs Font<'glyphs>,
+    font: Font<'glyphs>,
 
     text: Box<str>,
     name: Box<str>,
@@ -47,7 +47,7 @@ pub struct TextBox<'glyphs> {
     redraw: RedrawState,
 }
 
-fn render_glyphs<'a>(font: &'a Font<'a>, text: &str, height: u32) -> (Vec<Glyph<'a>>, Point) {
+fn render_glyphs<'font>(font: &Font<'font>, text: &str, height: u32) -> (Vec<Glyph<'font>>, Point) {
     let scale = Scale::uniform(height as f32);
 
     let v_metrics = font.v_metrics(scale);
@@ -108,7 +108,7 @@ impl<'a> TextBox<'a> {
         #[cfg(feature = "textbox-logs")]
         log::debug!("'{}' | set_text :: re-rendering glyphs", self.name);
         let (glyphs, glyphs_size @ Point { x: width, .. }) =
-            render_glyphs(self.font, &self.text, area_height);
+            render_glyphs(&self.font, &self.text, area_height);
         if width > self.area.width() {
             log::info!(
                 "'{}' set_text :: resorting to resize before write",
@@ -176,7 +176,7 @@ impl Widget for TextBox<'_> {
         }
 
         let (_glyphs, Point { x: width, .. }, ..) =
-            render_glyphs(self.font, &self.text, height.min(self.desired_text_height));
+            render_glyphs(&self.font, &self.text, height.min(self.desired_text_height));
 
         width + self.h_margins()
     }
@@ -226,7 +226,7 @@ impl Widget for TextBox<'_> {
         let height_max = area_max_height.min(self.desired_text_height);
 
         let (glyphs, glyphs_size @ Point { x: width_used, .. }) =
-            render_glyphs(self.font, &self.text, height_max);
+            render_glyphs(&self.font, &self.text, height_max);
 
         if width_used <= width_max {
             #[cfg(feature = "textbox-logs")]
@@ -258,7 +258,7 @@ impl Widget for TextBox<'_> {
                 self.name,
             );
 
-            let (glyphs_new, glyphs_size_new) = render_glyphs(self.font, &self.text, height_new);
+            let (glyphs_new, glyphs_size_new) = render_glyphs(&self.font, &self.text, height_new);
             assert!(glyphs_size_new <= area_max_size, "the text scaled down was still too large. max: {area_max_size}, rendered: {glyphs_size_new}");
 
             self.glyphs_size = Some(Point::new(glyphs_size_new.x, height_max));
@@ -446,7 +446,7 @@ impl PositionedWidget for TextBox<'_> {
 
 #[derive(Clone)]
 pub struct TextBoxBuilder<'glyphs> {
-    font: &'glyphs Font<'glyphs>,
+    font: Option<Font<'glyphs>>,
     text: Box<str>,
     fg: Color,
     bg: Color,
@@ -466,9 +466,9 @@ pub struct TextBoxBuilder<'glyphs> {
 impl<'glyphs> TextBoxBuilder<'glyphs> {
     pub fn new() -> TextBoxBuilder<'glyphs> {
         Self {
-            font: &FONT,
             desired_text_height: u32::MAX,
             desired_width: None,
+            font: None,
 
             fg: Default::default(),
             bg: Default::default(),
@@ -485,7 +485,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     }
 
     crate::builder_fields! {
-        &'glyphs Font<'glyphs>, font;
+        Font<'glyphs>, font;
         u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
         Color, fg bg hover_fg hover_bg;
         Align, v_align h_align;
@@ -506,7 +506,10 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
 
     pub fn build(&self, name: &str) -> TextBox<'glyphs> {
         TextBox {
-            font: self.font,
+            font: self
+                .font
+                .to_owned()
+                .unwrap_or_else(|| panic!("'{}' No font provided", name)),
             text: self.text.clone(),
             fg_drawn: self.fg,
             bg_drawn: self.bg,

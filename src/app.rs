@@ -77,11 +77,24 @@ impl App {
             SlotPool::new(4000 * args.height as usize, &shm_state).expect("Failed to create pool");
         //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
 
+        let font_data = args
+            .font
+            .and_then(|ref path| {
+                std::fs::read(path)
+                    .inspect_err(|err| log::warn!("app :: failed to load custom font. {err}"))
+                    .ok()
+            })
+            .unwrap_or(FONT_DATA.to_vec());
+
+        let font =
+            rusttype::Font::try_from_vec(font_data).expect("error constructing FiraCodeMono");
+
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
         #[cfg(feature = "clock")]
         widgets.push(Box::new(
             crate::clock::Clock::builder()
+                .font(font.clone())
                 .number_fg(color::ROSE)
                 .spacer_fg(color::PINE)
                 .bg(color::SURFACE)
@@ -91,6 +104,7 @@ impl App {
 
         #[cfg(feature = "workspaces")]
         match crate::workspaces::Workspaces::builder()
+            .font(font.clone())
             .desired_height(args.height)
             .h_align(Align::Start)
             .fg(color::ROSE)
@@ -109,6 +123,7 @@ impl App {
         if let Some(time_stamp) = args.updated_last {
             widgets.push(Box::new(
                 crate::updated_last::UpdatedLast::builder()
+                    .font(font.clone())
                     .time_stamp(time_stamp)
                     .h_align(Align::End)
                     .fg(color::ROSE)
@@ -120,6 +135,7 @@ impl App {
 
         #[cfg(feature = "battery")]
         match crate::battery::Battery::builder()
+            .font(font)
             .battery_path(args.battery_path)
             .bg(color::SURFACE)
             .normal_color(color::PINE)

@@ -60,13 +60,13 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             Err(TryRecvError::Empty) => {}
         }
 
-        std::thread::yield_now();
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         let bytes_read = match socket.read(&mut buf) {
             Ok(b) => b,
             Err(err) => match err.kind() {
                 std::io::ErrorKind::WouldBlock => continue,
-                _ => bail!("'{name}' | work :: failed to read from socket: {err}"),
+                _ => bail!("'{name}' | work :: failed to read from socket. error={err}"),
             },
         };
 
@@ -75,7 +75,7 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             .filter_map(|line| line.find(">>").map(|idx| (&line[..idx], &line[idx + 2..])))
             .filter_map(|(cmd, msg)| {
                 WorkerMsg::parse(cmd, msg)
-                    .map_err(|err| log::warn!("Failed to parse WorkerMsg. err='{err}'"))
+                    .map_err(|err| log::warn!("Failed to parse WorkerMsg. error='{err}'"))
                     .ok()?
             })
             .try_for_each(|msg| send.send(msg))?;

@@ -6,7 +6,7 @@ use rusttype::{Font, PositionedGlyph, Scale};
 
 /// A single character displayed as large as possible
 pub struct Icon<'glyph> {
-    font: &'glyph Font<'glyph>,
+    font: Font<'glyph>,
 
     icon: char,
     name: Box<str>,
@@ -38,12 +38,12 @@ pub struct Icon<'glyph> {
     desired_width: Option<u32>,
 }
 
-fn render_icon<'glyph, 'name>(
-    name: &'name str,
-    font: &'glyph Font<'glyph>,
+fn render_icon<'a, 'font>(
+    name: &'a str,
+    font: &'a Font<'font>,
     icon: char,
     max_size: Point,
-) -> (PositionedGlyph<'glyph>, Point) {
+) -> (PositionedGlyph<'font>, Point) {
     let Point {
         x: max_width,
         y: max_height,
@@ -77,7 +77,7 @@ fn render_icon<'glyph, 'name>(
     let new_scale = Scale::uniform(max_width_scale.min(max_height_scale));
     #[cfg(feature = "icon-logs")]
     log::trace!(
-        "'{name}' | render_glyph :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
+        "'{name}' | render_icon :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
         new_scale.x
     );
 
@@ -93,20 +93,20 @@ fn render_icon<'glyph, 'name>(
 
     #[cfg(feature = "icon-logs")]
     log::trace!(
-        "'{name}' | render_glyph :: max width: {max_width}, glyph width: {}, old_size: {}",
+        "'{name}' | render_icon :: max width: {max_width}, glyph width: {}, old_size: {}",
         new_size.x,
         bb_width,
     );
     #[cfg(feature = "icon-logs")]
     log::trace!(
-        "'{name}' | render_glyph :: max height: {max_height}, glyph height: {}, old_size: {}",
+        "'{name}' | render_icon :: max height: {max_height}, glyph height: {}, old_size: {}",
         new_size.y,
         bb_height,
     );
 
     assert!(
         new_size <= max_size,
-        "'{name}' | render_glyph :: new size: {new_size}, max size: {max_size}"
+        "'{name}' | render_icon :: new size: {new_size}, max size: {max_size}"
     );
 
     (new_glyph, new_size)
@@ -169,7 +169,7 @@ impl Widget for Icon<'_> {
                 x: glyph_width,
                 y: glyph_height,
             },
-        ) = render_icon(&self.name, self.font, self.icon, size_used);
+        ) = render_icon(&self.name, &self.font, self.icon, size_used);
         assert!(glyph_height <= height);
 
         glyph_width + self.h_margins()
@@ -202,7 +202,7 @@ impl Widget for Icon<'_> {
             return;
         }
 
-        let glyph = render_icon(&self.name, self.font, self.icon, used_size);
+        let glyph = render_icon(&self.name, &self.font, self.icon, used_size);
         assert!(
             glyph.1 <= used_size,
             "'{}' :: glyph size: {}, max size: {}, useable: {}",
@@ -289,7 +289,7 @@ impl PositionedWidget for Icon<'_> {
 
 #[derive(Clone)]
 pub struct IconBuilder<'glyph> {
-    font: &'glyph Font<'glyph>,
+    font: Option<Font<'glyph>>,
     icon: char,
     fg: Color,
     bg: Color,
@@ -312,7 +312,7 @@ pub struct IconBuilder<'glyph> {
 impl<'glyph> IconBuilder<'glyph> {
     pub fn new() -> IconBuilder<'glyph> {
         Self {
-            font: &FONT,
+            font: None,
 
             top_margin: 0.0,
             bottom_margin: 0.0,
@@ -330,7 +330,7 @@ impl<'glyph> IconBuilder<'glyph> {
     }
 
     crate::builder_fields! {
-        &'glyph Font<'glyph>, font;
+        Font<'glyph>, font;
         u32, desired_height desired_width;
         f32, top_margin bottom_margin left_margin right_margin;
         Color, fg bg;
@@ -357,7 +357,11 @@ impl<'glyph> IconBuilder<'glyph> {
         assert!((0.0..=1.0).contains(&self.right_margin));
 
         Icon {
-            font: self.font,
+            name: name.into(),
+            font: self
+                .font
+                .clone()
+                .unwrap_or_else(|| panic!("'{}' no font provided", name)),
             icon: self.icon,
             fg_drawn: self.fg,
             bg_drawn: self.bg,
@@ -365,7 +369,6 @@ impl<'glyph> IconBuilder<'glyph> {
             bg: self.bg,
             desired_height: self.desired_height,
             desired_width: self.desired_width,
-            name: name.into(),
 
             top_margin: self.top_margin,
             bottom_margin: self.bottom_margin,

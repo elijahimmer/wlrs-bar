@@ -2,7 +2,8 @@ use crate::draw::prelude::*;
 use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use rusttype::Font;
+use std::path::PathBuf;
 
 // TODO: I should make this not hard coded and read all of them.
 pub const DEFAULT_BATTERY_PATH: &str = "/sys/class/power_supply/BAT0";
@@ -39,7 +40,7 @@ pub struct Battery<'a> {
 }
 
 impl Battery<'_> {
-    pub fn builder() -> BatteryBuilder {
+    pub fn builder<'a>() -> BatteryBuilder<'a> {
         BatteryBuilder::new()
     }
 
@@ -164,7 +165,8 @@ impl Widget for Battery<'_> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BatteryBuilder {
+pub struct BatteryBuilder<'font> {
+    font: Option<Font<'font>>,
     desired_height: Option<u32>,
     desired_width: Option<u32>,
     battery_path: Option<PathBuf>,
@@ -179,23 +181,29 @@ pub struct BatteryBuilder {
     critical_color: Color,
 }
 
-impl BatteryBuilder {
+impl<'font> BatteryBuilder<'font> {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
+        Font<'font>, font;
         Color, bg full_color charging_color normal_color warn_color critical_color;
         u32, desired_height desired_width;
         Align, v_align h_align;
         Option<PathBuf>, battery_path;
     }
 
-    pub fn build<'a>(&self, name: &str) -> Result<Battery<'a>> {
+    pub fn build(&self, name: &str) -> Result<Battery<'font>> {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
         log::info!("'{name}' :: Initializing with height: {desired_height}");
+        let font = self
+            .font
+            .clone()
+            .unwrap_or_else(|| panic!("'{}' A font must be provided", name));
 
         let battery = Icon::builder()
+            .font(font.clone())
             .icon('')
             .fg(self.normal_color)
             .bg(color::CLEAR)
@@ -207,6 +215,7 @@ impl BatteryBuilder {
             .build(&(name.to_owned() + " Outline"));
 
         let charging = Icon::builder()
+            .font(font)
             .icon('󱐋')
             .fg(self.charging_color)
             .bg(color::CLEAR)
