@@ -176,7 +176,13 @@ impl Workspaces<'_> {
             );
 
             assert!(self.area.contains_rect(wk_area));
-            assert!(wk_area.size() == Point::new(height, height));
+            assert!(
+                wk_area.size()
+                    == Point {
+                        x: height,
+                        y: height
+                    }
+            );
 
             let old_area = w.area();
             w.resize(wk_area);
@@ -276,7 +282,13 @@ impl Widget for Workspaces<'_> {
             return Ok(());
         } else if self.redraw.contains(RedrawState::FillAfter) {
             let area_to_fill = self.workspaces.last().map_or(self.area, |(_id, w)| {
-                Rect::new(Point::new(w.area().max.x, self.area.min.y), self.area.max)
+                Rect::new(
+                    Point {
+                        x: w.area().max.x,
+                        y: self.area.min.y,
+                    },
+                    self.area.max,
+                )
             });
             area_to_fill.draw(self.bg, ctx);
             ctx.damage.push(area_to_fill);

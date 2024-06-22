@@ -33,7 +33,10 @@ pub trait PositionedWidget {
     }
 
     fn margins(&self) -> Point {
-        Point::new(self.h_margins(), self.v_margins())
+        Point {
+            x: self.h_margins(),
+            y: self.v_margins(),
+        }
     }
 }
 
@@ -86,14 +89,35 @@ pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect) {
         .map(|i| i % 2 == 0)
         .zip(widgets.iter_mut().zip(widths.iter()));
 
-    let mut left = Rect::new(area.min, area.min + Point::new(width_max / 2, height_max));
-    let mut right = Rect::new(area.min + Point::new(width_max / 2, 0), area.max);
+    let mut left = Rect::new(
+        area.min,
+        area.min
+            + Point {
+                x: width_max / 2,
+                y: height_max,
+            },
+    );
+    let mut right = Rect::new(
+        area.min
+            + Point {
+                x: width_max / 2,
+                y: 0,
+            },
+        area.max,
+    );
     log::trace!("center_widgets :: left: {left}, right: {right}");
 
     if widths.len() % 2 == 1 {
         // is odd
         let (_, (widget, &width)) = iter.next().unwrap();
-        let rect = area.place_at(Point::new(width, height_max), Align::Center, Align::Center);
+        let rect = area.place_at(
+            Point {
+                x: width,
+                y: height_max,
+            },
+            Align::Center,
+            Align::Center,
+        );
         log::trace!("center_widgets :: rect: {rect}, width: {width}");
 
         widget.resize(rect);
@@ -107,9 +131,23 @@ pub fn center_widgets(widgets: &mut [&mut impl Widget], area: Rect) {
 
     iter.for_each(|(go_left, (widget, &width))| {
         let rect = if go_left {
-            left.place_at(Point::new(width, height_max), Align::End, Align::Center)
+            left.place_at(
+                Point {
+                    x: width,
+                    y: height_max,
+                },
+                Align::End,
+                Align::Center,
+            )
         } else {
-            right.place_at(Point::new(width, height_max), Align::Start, Align::Center)
+            right.place_at(
+                Point {
+                    x: width,
+                    y: height_max,
+                },
+                Align::Start,
+                Align::Center,
+            )
         };
 
         widget.resize(rect);

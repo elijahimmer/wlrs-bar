@@ -10,42 +10,56 @@ pub struct Point {
 impl Point {
     pub const ZERO: Self = Self { x: 0, y: 0 };
 
-    pub fn new(x: u32, y: u32) -> Self {
-        Self { x, y }
-    }
-
     pub fn extend_to(self, other: impl Into<Self>) -> Rect {
         Rect::new(self, other.into())
     }
 
     pub fn smallest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        Self::new(self.x.min(other.x), self.y.min(other.y))
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+        }
     }
 
     pub fn largest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        Self::new(self.x.max(other.x), self.y.max(other.y))
+        Self {
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+        }
     }
 
     pub fn x_shift(self, offset: i32) -> Self {
-        Self::new((self.x as i32 + offset).try_into().unwrap(), self.y)
+        Self {
+            x: (self.x as i32 + offset).try_into().unwrap(),
+            ..self
+        }
     }
 
     pub fn y_shift(self, offset: i32) -> Self {
-        Self::new(self.x, (self.y as i32 + offset).try_into().unwrap())
+        Self {
+            y: (self.y as i32 + offset).try_into().unwrap(),
+            ..self
+        }
     }
 }
 
 impl<T: AsPrimitive<u32>> From<(T, T)> for Point {
     fn from((x, y): (T, T)) -> Self {
-        Self::new(x.as_(), y.as_())
+        Self {
+            x: x.as_(),
+            y: y.as_(),
+        }
     }
 }
 
 impl<T: AsPrimitive<u32>> From<rusttype::Point<T>> for Point {
     fn from(val: rusttype::Point<T>) -> Self {
-        Self::new(val.x.as_(), val.y.as_())
+        Self {
+            x: val.x.as_(),
+            y: val.y.as_(),
+        }
     }
 }
 

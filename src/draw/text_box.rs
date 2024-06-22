@@ -51,7 +51,10 @@ fn render_glyphs<'font>(font: &Font<'font>, text: &str, height: u32) -> (Vec<Gly
     let scale = Scale::uniform(height as f32);
 
     let v_metrics = font.v_metrics(scale);
-    let offset = Point::new(0, v_metrics.ascent.round() as u32);
+    let offset = Point {
+        x: 0,
+        y: v_metrics.ascent.round() as u32,
+    };
 
     let glyphs = font
         .layout(text, scale, offset.into())
@@ -68,7 +71,13 @@ fn render_glyphs<'font>(font: &Font<'font>, text: &str, height: u32) -> (Vec<Gly
         .max()
         .unwrap_or(0);
 
-    (glyphs, Point::new(width, height))
+    (
+        glyphs,
+        Point {
+            x: width,
+            y: height,
+        },
+    )
 }
 
 impl<'a> TextBox<'a> {
@@ -117,7 +126,10 @@ impl<'a> TextBox<'a> {
             self.resize(self.area); // TODO: Make it so we don't re-render like 4 times
         } else {
             self.glyphs = Some(glyphs);
-            self.glyphs_size = Some(Point::new(glyphs_size.x, area_height));
+            self.glyphs_size = Some(Point {
+                x: glyphs_size.x,
+                y: area_height,
+            });
         }
     }
 
@@ -206,18 +218,13 @@ impl Widget for TextBox<'_> {
         log::trace!("'{}' | resize :: re-rendering text", self.name);
 
         // the maximum area the text can be (while following margins)
-        let area_min = self.area.min + Point::new(self.left_margin, self.top_margin);
-        let area_max = self.area.max - Point::new(self.right_margin, self.bottom_margin);
-        if area_min >= area_max {
-            self.glyphs_size = None;
-            self.glyphs = None;
-            return;
-        }
+        let area_max = self
+            .area
+            .shrink_top(self.top_margin())
+            .shrink_bottom(self.bottom_margin())
+            .shrink_left(self.left_margin())
+            .shrink_right(self.right_margin());
 
-        let area_max = Rect {
-            min: area_min,
-            max: area_max,
-        };
         let area_max_size @ Point {
             x: width_max,
             y: area_max_height,
@@ -239,7 +246,10 @@ impl Widget for TextBox<'_> {
                 glyphs_size <= area_max_size,
                 "text rendered was too tall. max: {area_max_size}, rendered: {glyphs_size}"
             );
-            self.glyphs_size = Some(Point::new(glyphs_size.x, height_max));
+            self.glyphs_size = Some(Point {
+                x: glyphs_size.x,
+                y: height_max,
+            });
             // uses height max as the glyphs rely on that for placement
             self.glyphs = Some(glyphs);
         } else {
@@ -261,7 +271,10 @@ impl Widget for TextBox<'_> {
             let (glyphs_new, glyphs_size_new) = render_glyphs(&self.font, &self.text, height_new);
             assert!(glyphs_size_new <= area_max_size, "the text scaled down was still too large. max: {area_max_size}, rendered: {glyphs_size_new}");
 
-            self.glyphs_size = Some(Point::new(glyphs_size_new.x, height_max));
+            self.glyphs_size = Some(Point {
+                x: glyphs_size_new.x,
+                y: height_max,
+            });
             self.glyphs = Some(glyphs_new);
         }
     }
@@ -346,7 +359,7 @@ impl Widget for TextBox<'_> {
                     "bb not in area: {area_used}, bb: {bb}"
                 );
                 gly.draw(|x, y, v| {
-                    let point @ Point { x, y } = bb.min + Point::new(x, y);
+                    let point @ Point { x, y } = bb.min + Point { x, y };
 
                     let idx = 4 * (x + y * ctx.rect.width()) as usize;
 

@@ -40,7 +40,10 @@ impl Rect {
 
     pub fn size(self) -> Point {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
-        Point::new(self.width(), self.height())
+        Point {
+            x: self.width(),
+            y: self.height(),
+        }
     }
 
     pub fn center(self) -> Point {
@@ -167,8 +170,8 @@ impl Rect {
         let (x_min, x_max) = align(h_align, self.min.x, self.max.x, size.x);
         let (y_min, y_max) = align(v_align, self.min.y, self.max.y, size.y);
 
-        let min = Point::new(x_min, y_min);
-        let max = Point::new(x_max, y_max);
+        let min = Point { x: x_min, y: y_min };
+        let max = Point { x: x_max, y: y_max };
 
         assert!(self.contains(min));
         assert!(self.contains(max));
@@ -199,7 +202,7 @@ impl Rect {
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
-                ctx.put(Point::new(x, y), color);
+                ctx.put(Point { x, y }, color);
             }
         }
     }
@@ -210,7 +213,7 @@ impl Rect {
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
             for x in self.min.x..self.max.x {
-                ctx.put_composite(Point::new(x, y), color);
+                ctx.put_composite(Point { x, y }, color);
             }
         }
     }
@@ -218,13 +221,25 @@ impl Rect {
     pub fn draw_outline(self, color: Color, ctx: &mut DrawCtx) {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         for x in self.min.x + 1..self.max.x {
-            ctx.put(Point::new(x, self.min.y), color);
-            ctx.put(Point::new(x, self.max.y - 1), color);
+            ctx.put(Point { x, y: self.min.y }, color);
+            ctx.put(
+                Point {
+                    x,
+                    y: self.max.y - 1,
+                },
+                color,
+            );
         }
 
         for y in self.min.y..self.max.y {
-            ctx.put(Point::new(self.min.x, y), color);
-            ctx.put(Point::new(self.max.x - 1, y), color);
+            ctx.put(Point { x: self.min.x, y }, color);
+            ctx.put(
+                Point {
+                    x: self.max.x - 1,
+                    y,
+                },
+                color,
+            );
         }
     }
 

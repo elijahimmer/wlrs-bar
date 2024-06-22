@@ -282,14 +282,20 @@ impl LayerShellHandler for App {
         }
 
         let (width, height) = (self.width, self.height);
-        let canvas_size = Point::new(width, height);
-        let canvas = canvas_size.extend_to(Point::new(0, 0));
+        let canvas_size = Point {
+            x: width,
+            y: height,
+        };
+        let canvas = canvas_size.extend_to(Point::ZERO);
 
         for w in self.widgets.iter_mut() {
             let wid_height = w.desired_height().clamp(0, height);
             let wid_width = w.desired_width(wid_height).clamp(0, width);
 
-            let size = Point::new(wid_width, wid_height);
+            let size = Point {
+                x: wid_width,
+                y: wid_height,
+            };
             log::trace!("configure :: '{}' size: {size}", w.name());
 
             let area = canvas.place_at(size, w.h_align(), w.v_align());
@@ -468,7 +474,10 @@ impl App {
             )
             .unwrap();
 
-        let rect = Point::new(0, 0).extend_to(Point::new(self.width, self.height));
+        let rect = Point::ZERO.extend_to(Point {
+            x: self.width,
+            y: self.height,
+        });
 
         let surface = self.layer_surface.wl_surface();
 

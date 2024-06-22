@@ -103,12 +103,14 @@ impl Widget for Clock<'_> {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         inner_as_slice!(self mut).iter_mut().for_each(|w| {
-            if let Err(err) = w.draw(ctx) {
-                log::warn!(
-                    "'{}' | draw :: widget '{}' failed to draw. error={err}",
-                    self.name,
-                    w.name()
-                );
+            if w.should_redraw() {
+                if let Err(err) = w.draw(ctx) {
+                    log::warn!(
+                        "'{}' | draw :: widget '{}' failed to draw. error={err}",
+                        self.name,
+                        w.name()
+                    );
+                }
             }
         });
 
