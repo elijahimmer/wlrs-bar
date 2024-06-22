@@ -232,7 +232,7 @@ impl Widget for Icon<'_> {
             *size
         );
 
-        self.area.draw(self.bg, ctx);
+        self.area.draw_composite(self.bg, ctx);
         ctx.damage.push(self.area);
 
         let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
