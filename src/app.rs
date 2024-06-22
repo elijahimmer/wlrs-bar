@@ -201,7 +201,6 @@ impl CompositorHandler for App {
         _surface: &wl_surface::WlSurface,
         _new_factor: i32,
     ) {
-        // Not needed for this example.
     }
 
     fn transform_changed(
@@ -211,7 +210,6 @@ impl CompositorHandler for App {
         _surface: &wl_surface::WlSurface,
         _new_transform: wl_output::Transform,
     ) {
-        // Not needed for this example.
     }
 
     fn frame(
@@ -458,9 +456,9 @@ impl PointerHandler for App {
 
 impl App {
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
-        self.pool
-            .resize((self.width * self.height * 4) as usize)
-            .unwrap();
+        //self.pool
+        //    .resize((self.width * self.height * 4) as usize)
+        //    .unwrap();
         let stride: i32 = i32::try_from(self.width).unwrap() * 4;
 
         // TODO: Reuse these buffers :)
@@ -514,7 +512,7 @@ impl App {
         for w in self.widgets.iter_mut() {
             if w.should_redraw() {
                 if let Err(err) = w.draw(&mut ctx) {
-                    log::warn!("draw :: widget failed to draw: error={err}");
+                    log::warn!("draw :: widget '{}' failed to draw: error={err}", w.name());
                 }
             }
             #[cfg(feature = "outlines")]
@@ -552,12 +550,15 @@ impl App {
 
         self.layer_surface.commit();
 
-        // hack to test all sizes above your own (until it hits some limit)
-        //log::info!("draw :: height: {}", self.height);
-        //self.layer_surface.set_size(self.default_width, self.height + 1);
-        //self.layer_surface
-        //    .set_exclusive_zone(self.height.try_into().unwrap() + 1);
-        //self.layer_surface.commit();
+        if cfg!(feature = "height-test") {
+            // hack to test all sizes above your own (until it hits some limit)
+            log::info!("draw :: height: {}", self.height);
+            self.layer_surface
+                .set_size(self.default_width, self.height - 1);
+            self.layer_surface
+                .set_exclusive_zone(self.height as i32 - 1);
+            self.layer_surface.commit();
+        }
     }
 
     pub fn run_queue(&mut self, event_queue: &mut EventQueue<Self>) {

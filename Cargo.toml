@@ -30,7 +30,10 @@ battery = []
 debug = ["outlines"]
 
 damage = []
+# show outlines of every top level widget
 outlines = []
+# grows in size every frame
+height-test = []
 
 textbox-all = ["textbox-logs", "textbox-outlines"]
 textbox-logs = []
