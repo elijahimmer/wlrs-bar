@@ -64,7 +64,7 @@ impl App {
 
         let surface = compositor.create_surface(&qh);
         let layer_surface =
-            layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("bar-wlrs"), None);
+            layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("wlrs-bar"), None);
 
         layer_surface.set_anchor(Anchor::BOTTOM.complement()); // anchor to all sides but the bottom
         layer_surface.set_size(args.width, args.height);

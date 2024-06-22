@@ -94,22 +94,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 
 [[package]]
-name = "bar-wlrs"
-version = "2024.6.18"
-dependencies = [
- "anyhow",
- "bitflags",
- "chrono",
- "clap",
- "lazy_static",
- "log",
- "pretty_env_logger",
- "rusttype",
- "smithay-client-toolkit",
- "wayland-client",
-]
-
-[[package]]
 name = "bitflags"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -942,6 +926,22 @@ name = "windows_x86_64_msvc"
 version = "0.52.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
+
+[[package]]
+name = "wlrs-bar"
+version = "2024.6.18"
+dependencies = [
+ "anyhow",
+ "bitflags",
+ "chrono",
+ "clap",
+ "lazy_static",
+ "log",
+ "pretty_env_logger",
+ "rusttype",
+ "smithay-client-toolkit",
+ "wayland-client",
+]
 
 [[package]]
 name = "xcursor"

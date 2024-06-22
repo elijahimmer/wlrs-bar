@@ -39,13 +39,13 @@
       src = ./.;
       meta = with pkgs.lib; {
         description = "A status bar for Hyprland.";
-        homepage = "https://github.com/elijahimmer/bar-wlrs";
+        homepage = "https://github.com/elijahimmer/wlrs-bar";
         license = licenses.mit;
-        mainProgram = "bar-wlrs";
+        mainProgram = "wlrs-bar";
       };
 
       /*postInstall = ''
-        wrapProgram $out/bin/bar-wlrs \
+        wrapProgram $out/bin/wlrs-bar \
       '';*/
     };
 
