@@ -1,6 +1,7 @@
-pub use super::color::Color;
-pub use super::icon::{Icon, IconBuilder};
-pub use super::point::Point;
-pub use super::rect::Rect;
-pub use super::text_box::{TextBox, TextBoxBuilder};
-pub use super::{Align, DrawCtx, FONT};
+pub use super::color::{self, Color};
+pub use super::icon::{self, Icon, IconBuilder};
+pub use super::point::{self, Point};
+pub use super::progress::{self, Progress, ProgressBuilder};
+pub use super::rect::{self, Rect};
+pub use super::text_box::{self, TextBox, TextBoxBuilder};
+pub use super::{Align, Direction, DrawCtx, FONT};

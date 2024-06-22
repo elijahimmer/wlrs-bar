@@ -266,10 +266,11 @@ impl Widget for TextBox<'_> {
         }
     }
 
+    fn should_redraw(&mut self) -> bool {
+        self.glyphs_size.is_some() && self.redraw != RedrawState::None
+    }
+
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        if self.glyphs_size.is_none() || self.redraw == RedrawState::None && !ctx.full_redraw {
-            return Ok(());
-        }
         #[cfg(feature = "textbox-logs")]
         log::trace!(
             "'{}' | draw :: redraw: {:?}, full redraw: {}",

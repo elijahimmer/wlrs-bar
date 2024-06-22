@@ -4,9 +4,13 @@ pub mod widget;
 
 pub mod app;
 
+#[cfg(feature = "battery")]
 pub mod battery;
+#[cfg(feature = "clock")]
 pub mod clock;
+#[cfg(feature = "updated-last")]
 pub mod updated_last;
+#[cfg(feature = "workspaces")]
 pub mod workspaces;
 
 use clap::Parser;
@@ -19,6 +23,10 @@ pub struct Args {
     #[cfg(feature = "updated-last")]
     #[arg(short, long)]
     updated_last: Option<i64>,
+
+    #[cfg(feature = "battery")]
+    #[arg(short, long)]
+    battery_path: Option<std::path::PathBuf>,
 
     /// how heigh the bar should be
     #[arg(long, default_value_t = 28)]

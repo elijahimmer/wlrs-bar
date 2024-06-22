@@ -253,9 +253,18 @@ impl Widget for Workspaces<'_> {
         self.replace_widgets();
     }
 
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        self.update_workspaces()?;
+    fn should_redraw(&mut self) -> bool {
+        if let Err(err) = self.update_workspaces() {
+            log::warn!(
+                "'{}' | should_redraw :: failed to update workspaces. error={err}",
+                self.name
+            );
+        }
 
+        !self.redraw.is_empty()
+    }
+
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if self.redraw.contains(RedrawState::Replace) {
             self.replace_widgets();
         }

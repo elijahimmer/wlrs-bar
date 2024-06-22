@@ -2,6 +2,7 @@ pub mod color;
 pub mod icon;
 pub mod point;
 pub mod prelude;
+pub mod progress;
 pub mod rect;
 pub mod text_box;
 
@@ -67,4 +68,13 @@ impl DrawCtx<'_> {
             assert_eq!(composite, color, "at {pnt}");
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash, Default)]
+pub enum Direction {
+    #[default]
+    North,
+    East,
+    South,
+    West,
 }

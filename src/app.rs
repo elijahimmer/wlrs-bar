@@ -119,18 +119,22 @@ impl App {
         }
 
         #[cfg(feature = "battery")]
-        widgets.push(Box::new(
-            crate::battery::Battery::builder()
-                .bg(color::SURFACE)
-                .full_fg(color::PINE)
-                .charging_fg(color::GOLD)
-                .ok_fg(color::ROSE)
-                .warn_fg(color::LOVE)
-                .desired_height(args.height)
-                .desired_width(args.height)
-                .h_align(Align::End)
-                .build("Battery"),
-        ));
+        match crate::battery::Battery::builder()
+            .battery_path(args.battery_path)
+            .bg(color::SURFACE)
+            .normal_color(color::PINE)
+            .full_color(color::GOLD)
+            .charging_color(color::GOLD)
+            .warn_color(color::LOVE)
+            .critical_color(color::LOVE)
+            .desired_height(args.height)
+            .desired_width(args.height)
+            .h_align(Align::End)
+            .build("Battery")
+        {
+            Ok(w) => widgets.push(Box::new(w)),
+            Err(err) => log::warn!("new :: Battery widget disabled. error={err}"),
+        }
 
         let mut me = Self {
             //connection,
@@ -262,10 +266,10 @@ impl LayerShellHandler for App {
             let wid_width = w.desired_width(wid_height).clamp(0, width);
 
             let size = Point::new(wid_width, wid_height);
-            log::trace!("'{}' | configure :: size: {size}", w.name());
+            log::trace!("configure :: '{}' size: {size}", w.name());
 
             let area = canvas.place_at(size, w.h_align(), w.v_align());
-            log::trace!("'{}' | configure :: resized: {area}", w.name());
+            log::trace!("configure :: '{}' resized: {area}", w.name());
             w.resize(area);
         }
 
@@ -475,8 +479,10 @@ impl App {
         }
 
         for w in self.widgets.iter_mut() {
-            if let Err(err) = w.draw(&mut ctx) {
-                log::warn!("draw :: widget failed to draw: error={err}");
+            if w.should_redraw() {
+                if let Err(err) = w.draw(&mut ctx) {
+                    log::warn!("draw :: widget failed to draw: error={err}");
+                }
             }
             #[cfg(feature = "outlines")]
             w.area().draw_outline(color::PINE, &mut ctx);

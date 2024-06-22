@@ -20,7 +20,7 @@ wayland-client = { version = "0.31.2", features = ["log"] }
 [features]
 default = ["widgets"]
 
-widgets = ["clock", "workspaces", "updated-last"]
+widgets = ["clock", "workspaces", "updated-last", "battery"]
 clock = []
 workspaces = []
 updated-last = []
@@ -42,6 +42,10 @@ textbox-outlines-used = []
 icon-all = ["icon-logs", "icon-outlines"]
 icon-logs = []
 icon-outlines = []
+
+progress-all = ["progress-logs", "progress-outlines"]
+progress-logs = []
+progress-outlines = []
 
 debug-rect-draw = []
 debug-rect-place-at = []

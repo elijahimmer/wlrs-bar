@@ -19,8 +19,8 @@ impl Rect {
         let (a, b) = (a.into(), b.into());
         let (min_x, max_x) = cmp(a.x, b.x);
         let (min_y, max_y) = cmp(a.y, b.y);
-        debug_assert!(min_x <= max_x, "{min_x} > {max_x}");
-        debug_assert!(min_y <= max_y, "{min_y} > {max_y}");
+        assert!(min_x <= max_x, "{min_x} > {max_x}");
+        assert!(min_y <= max_y, "{min_y} > {max_y}");
 
         Self {
             min: Point { x: min_x, y: min_y },
@@ -29,22 +29,22 @@ impl Rect {
     }
 
     pub fn width(self) -> u32 {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         self.max.x - self.min.x
     }
 
     pub fn height(self) -> u32 {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         self.max.y - self.min.y
     }
 
     pub fn size(self) -> Point {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Point::new(self.width(), self.height())
     }
 
     pub fn center(self) -> Point {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Point {
             x: (self.min.x + self.max.x) / 2,
             y: (self.min.y + self.max.y) / 2,
@@ -53,7 +53,7 @@ impl Rect {
 
     pub fn largest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
             min: self.min.smallest(other.min),
             max: self.max.largest(other.max),
@@ -62,12 +62,12 @@ impl Rect {
 
     pub fn smallest(self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self::new(self.min.largest(other.min), self.max.smallest(other.max))
     }
 
     pub fn x_shift(self, x_offset: i32) -> Self {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
             min: self.min.x_shift(x_offset),
             max: self.max.x_shift(x_offset),
@@ -75,27 +75,63 @@ impl Rect {
     }
 
     pub fn y_shift(self, y_offset: i32) -> Self {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
             min: self.min.y_shift(y_offset),
             max: self.max.y_shift(y_offset),
         }
     }
 
+    /// shrinks the top side
+    pub fn shrink_top(self, amount: u32) -> Self {
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        Self {
+            min: self.min.y_shift(amount as i32),
+            ..self
+        }
+    }
+
+    /// shrinks the bottom side
+    pub fn shrink_bottom(self, amount: u32) -> Self {
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        Self {
+            max: self.max.y_shift(-(amount as i32)),
+            ..self
+        }
+    }
+
+    /// shrinks the right side
+    pub fn shrink_right(self, amount: u32) -> Self {
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        Self {
+            max: self.max.x_shift(-(amount as i32)),
+            ..self
+        }
+    }
+
+    /// shrinks the left side
+    pub fn shrink_left(self, amount: u32) -> Self {
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        Self {
+            min: self.min.x_shift(amount as i32),
+            ..self
+        }
+    }
+
     pub fn place_at(self, size: Point, h_align: Align, v_align: Align) -> Self {
         #[cfg(feature = "debug-rect-place-at")]
         log::trace!("place_at :: self: {self}, size: {size}, {h_align:?} x {v_align:?}");
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
-        debug_assert!(
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(
             self.max.x >= self.min.x + size.x,
-            "place at :: x too large: {} < {} + {}",
+            "place at :: x too large: max: {} not > min: {} + size: {}",
             self.max.x,
             self.min.x,
             size.x
         );
-        debug_assert!(
+        assert!(
             self.max.y >= self.min.y + size.y,
-            "place at :: y too large: {} < {} + {}",
+            "place at :: y too large: max: {} not > min: {} + size: {}",
             self.max.y,
             self.min.y,
             size.y
@@ -108,7 +144,7 @@ impl Rect {
                 Align::End => (max - size, max),
                 Align::Center => (center - (size / 2), center + (size / 2) + (size % 2)),
                 Align::CenterAt(ratio) => {
-                    debug_assert!((0.0..1.0).contains(&ratio));
+                    assert!((0.0..1.0).contains(&ratio));
                     let up = (size as f32 * (1.0 - ratio)).round() as u32;
                     if up > center || up > size || center - up < min {
                         (center - (size / 2), center + (size / 2) + (size % 2))
@@ -123,11 +159,7 @@ impl Rect {
                 "place_at :: center: {center}, min_res: {min_res}, max_res: {max_res}, dist: {}",
                 max_res - min_res,
             );
-            debug_assert!(min_res <= max_res, "{min_res} > {max_res}");
-            //debug_assert!(
-            //    (size - 1..=size + 1).contains(&(max_res - min_res)),
-            //    "{max_res} - {min_res} != {size}"
-            //);
+            assert!(min_res <= max_res, "{min_res} > {max_res}");
 
             (min_res, max_res)
         };
@@ -138,8 +170,8 @@ impl Rect {
         let min = Point::new(x_min, y_min);
         let max = Point::new(x_max, y_max);
 
-        debug_assert!(self.contains(min));
-        debug_assert!(self.contains(max));
+        assert!(self.contains(min));
+        assert!(self.contains(max));
 
         #[cfg(feature = "debug-rect-place-at")]
         log::trace!("place_at :: result: {min} -> {max}");
@@ -148,13 +180,13 @@ impl Rect {
 
     pub fn contains(self, p: impl Into<Point>) -> bool {
         let p = p.into();
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         (self.min.x..=self.max.x).contains(&p.x) && (self.min.y..=self.max.y).contains(&p.y)
     }
 
     pub fn contains_rect(self, r: impl Into<Self>) -> bool {
         let r = r.into();
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         self.min.x <= r.min.x
             && self.min.y <= r.min.y
             && self.max.x >= r.max.x
@@ -162,7 +194,7 @@ impl Rect {
     }
 
     pub fn draw(self, color: Color, ctx: &mut DrawCtx) {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         #[cfg(feature = "debug-rect-draw")]
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
@@ -173,7 +205,7 @@ impl Rect {
     }
 
     pub fn draw_composite(self, color: Color, ctx: &mut DrawCtx) {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         #[cfg(feature = "debug-rect-draw")]
         log::debug!("draw :: self: {self}");
         for y in self.min.y..self.max.y {
@@ -184,7 +216,7 @@ impl Rect {
     }
 
     pub fn draw_outline(self, color: Color, ctx: &mut DrawCtx) {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         for x in self.min.x + 1..self.max.x {
             ctx.put(Point::new(x, self.min.y), color);
             ctx.put(Point::new(x, self.max.y - 1), color);
@@ -197,7 +229,7 @@ impl Rect {
     }
 
     pub fn damage_outline(self, surface: WlSurface) {
-        debug_assert!(self.max >= self.min, "{} < {}", self.max, self.min);
+        assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         let x_min = self.min.x as i32;
         let x_max = self.max.x as i32 - 1;
         let y_min = self.min.y as i32;

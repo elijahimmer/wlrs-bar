@@ -91,8 +91,13 @@ impl Widget for Clock<'_> {
         self.area = area;
     }
 
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+    fn should_redraw(&mut self) -> bool {
         self.update_time();
+
+        self.seconds.should_redraw()
+    }
+
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         inner_as_slice!(self mut).iter_mut().for_each(|w| {
             if let Err(err) = w.draw(ctx) {
                 log::warn!(

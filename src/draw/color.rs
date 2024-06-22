@@ -11,8 +11,8 @@ impl Color {
         Self { r, g, b, a }
     }
 
-    pub fn blend(self, other: Self, mut ratio: f32) -> Self {
-        ratio = ratio.clamp(0.0, 1.0);
+    pub fn blend(self, other: Self, ratio: f32) -> Self {
+        let ratio = ratio.clamp(0.0, 1.0);
         Self {
             r: self.r + ((other.r as f32 - self.r as f32) * ratio) as u8,
             g: self.g + ((other.g as f32 - self.g as f32) * ratio) as u8,
@@ -21,8 +21,8 @@ impl Color {
         }
     }
 
-    /// Returns a solid color by combining a (possibly) transparent color (self)
-    ///     and the base color (onto)
+    /// Returns a solid color by compositing a (possibly) transparent color (self)
+    ///     onto the base color (onto)
     pub fn composite(self, onto: Self) -> Self {
         let ratio = self.a as f32 / 255.0;
         let ratio_old = 1.0 - ratio;
@@ -34,6 +34,20 @@ impl Color {
             g: (ratio * g_new + ratio_old * g_old).clamp(0.0, 255.0) as u8,
             b: (ratio * b_new + ratio_old * b_old).clamp(0.0, 255.0) as u8,
             a: self.a.saturating_add(onto.a),
+        }
+    }
+
+    /// set the alpha (opacity) of the color
+    pub fn dilute(self, alpha: u8) -> Self {
+        Self { a: alpha, ..self }
+    }
+
+    /// set the alpha to the ratio provided.
+    pub fn dilute_f32(self, alpha: f32) -> Self {
+        assert!((0.0..=1.0).contains(&alpha));
+        Self {
+            a: (alpha * 255.0) as u8,
+            ..self
         }
     }
 
@@ -107,6 +121,15 @@ mod tests {
     fn composite() {
         for color in ALL_COLORS {
             assert_eq!(CLEAR.composite(color), color);
+        }
+
+        for bg in ALL_COLORS {
+            for fg in ALL_COLORS {
+                if fg.a == u8::MAX {
+                    assert_eq!(fg.composite(bg), fg);
+                }
+            }
+            assert_eq!(bg.composite(CLEAR), bg);
         }
     }
 }

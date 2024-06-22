@@ -10,6 +10,7 @@ pub trait Widget {
     fn desired_width(&self, height: u32) -> u32;
 
     fn resize(&mut self, rect: Rect);
+    fn should_redraw(&mut self) -> bool;
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()>;
 
     fn click(&mut self, button: ClickType, point: Point) -> Result<()>;

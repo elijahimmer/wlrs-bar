@@ -39,17 +39,24 @@ impl Widget for UpdatedLast<'_> {
     fn resize(&mut self, area: Rect) {
         self.text.resize(area);
     }
-    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+    fn should_redraw(&mut self) -> bool {
         let now = Utc::now();
 
         let new_text = &label_from_time(now - self.time);
-        if *new_text != *self.last_text_set {
-            self.last_text_set = new_text.clone().into();
-            self.text.set_text(new_text);
-            self.text.draw(ctx)
-        } else {
-            Ok(())
-        }
+
+        *new_text != *self.last_text_set
+    }
+
+    fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
+        let now = Utc::now();
+        let new_text = &label_from_time(now - self.time);
+
+        self.last_text_set = new_text.clone().into();
+        self.text.set_text(new_text);
+
+        self.text.draw(ctx)?;
+
+        Ok(())
     }
 
     fn click(&mut self, _button: ClickType, _point: Point) -> Result<()> {

@@ -30,8 +30,10 @@ pub struct Icon<'glyph> {
     v_align: Align,
 
     glyph: Option<(PositionedGlyph<'glyph>, Point)>,
+    should_redraw: bool,
 
     area: Rect,
+    area_used: Rect,
     desired_height: Option<u32>,
     desired_width: Option<u32>,
 }
@@ -53,28 +55,24 @@ fn render_icon<'glyph, 'name>(
 
     let glyph = font.glyph(icon);
     let positioned_glyph = glyph.clone().scaled(scale).positioned(offset);
-    let bb: Rect = {
+    let Point {
+        x: bb_width,
+        y: bb_height,
+    } = {
         let mut bb = positioned_glyph
             .pixel_bounding_box()
             .expect("Glyph should have a bounding box");
 
         bb.max.y -= bb.min.y;
-        bb.min.y = 0;
-
         bb.max.x -= bb.min.x;
-        bb.min.x = 0;
 
-        bb.into()
+        bb.max.into()
     };
 
-    let Point {
-        x: bb_width,
-        y: bb_height,
-    } = bb.size();
-
     // the scale to reach the max width/height
-    let max_width_scale = ((max_width as f32).powi(2) / bb_width as f32).round() - 1.0;
-    let max_height_scale = ((max_height as f32).powi(2) / (bb_height + 1) as f32).round() - 1.0;
+    let max_width_scale =
+        ((max_width as f32) * (max_height as f32) / (bb_width + 1) as f32).floor();
+    let max_height_scale = ((max_height as f32).powi(2) / (bb_height + 1) as f32).floor();
 
     let new_scale = Scale::uniform(max_width_scale.min(max_height_scale));
     #[cfg(feature = "icon-logs")]
@@ -84,41 +82,53 @@ fn render_icon<'glyph, 'name>(
     );
 
     let new_glyph = glyph.scaled(new_scale).positioned(offset);
-    let new_bb: Rect = {
+    let new_size: Point = {
         let mut new = new_glyph.clone().pixel_bounding_box().unwrap();
 
         new.max.y -= new.min.y;
-        new.min.y = 0;
-
         new.max.x -= new.min.x;
-        new.min.x = 0;
 
-        new.into()
+        new.max.into()
     };
 
     #[cfg(feature = "icon-logs")]
     log::trace!(
-        "'{name}' | render_glyph :: max width: {max_width}, glyph width: {}",
-        bb.max.x,
+        "'{name}' | render_glyph :: max width: {max_width}, glyph width: {}, old_size: {}",
+        new_size.x,
+        bb_width,
     );
     #[cfg(feature = "icon-logs")]
     log::trace!(
-        "'{name}' | render_glyph :: max height: {max_height}, glyph height: {}",
-        bb.max.y,
-    );
-    assert!(
-        bb.size() <= max_size,
-        "'{name}' | render_glyph :: bb: {}, max_size: {}",
-        bb.size(),
-        max_size
+        "'{name}' | render_glyph :: max height: {max_height}, glyph height: {}, old_size: {}",
+        new_size.y,
+        bb_height,
     );
 
-    (new_glyph, new_bb.max)
+    assert!(
+        new_size <= max_size,
+        "'{name}' | render_glyph :: new size: {new_size}, max size: {max_size}"
+    );
+
+    (new_glyph, new_size)
 }
 
 impl Icon<'_> {
     pub fn builder<'a>() -> IconBuilder<'a> {
         IconBuilder::new()
+    }
+
+    pub fn set_fg(&mut self, fg: Color) {
+        if fg != self.fg {
+            self.should_redraw = true;
+            self.fg = fg;
+        }
+    }
+
+    pub fn set_bg(&mut self, bg: Color) {
+        if bg != self.bg {
+            self.should_redraw = true;
+            self.bg = bg;
+        }
     }
 }
 
@@ -149,7 +159,9 @@ impl Widget for Icon<'_> {
 
         let size_used = Point {
             x: u32::MAX,
-            y: height.min(self.desired_height.unwrap_or(u32::MAX)),
+            y: height
+                .min(self.desired_height.unwrap_or(u32::MAX))
+                .saturating_sub(self.v_margins()),
         };
         let (
             _glyphs,
@@ -165,33 +177,53 @@ impl Widget for Icon<'_> {
 
     fn resize(&mut self, new_area: Rect) {
         self.area = new_area;
-        let Point {
-            x: width,
-            y: height,
-        } = new_area.size();
+        self.area_used = new_area
+            .shrink_top(self.top_margin())
+            .shrink_bottom(self.bottom_margin())
+            .shrink_left(self.left_margin())
+            .shrink_right(self.right_margin());
+
+        assert!(
+            self.area.contains_rect(self.area_used),
+            "area doesn't contain area used. area: {}, area_used: {}",
+            self.area,
+            self.area_used
+        );
+
         let used_size = Point {
-            x: width.saturating_sub(self.h_margins()),
-            y: height
-                .min(self.desired_height.unwrap_or(u32::MAX))
-                .saturating_sub(self.v_margins()),
+            x: self.area_used.width(),
+            y: self
+                .area_used
+                .height()
+                .min(self.desired_height.unwrap_or(u32::MAX)),
         };
+
+        if used_size == Point::ZERO {
+            return;
+        }
+
         let glyph = render_icon(&self.name, self.font, self.icon, used_size);
         assert!(
             glyph.1 <= used_size,
-            "'{}' :: glyph size: {}, max size: {}, area: {}",
+            "'{}' :: glyph size: {}, max size: {}, useable: {}",
             self.name,
             glyph.1,
             used_size,
-            new_area.size(),
+            self.area_used,
         );
 
         self.glyph = Some(glyph);
     }
 
+    fn should_redraw(&mut self) -> bool {
+        self.glyph.is_some() && self.should_redraw
+    }
+
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        if !ctx.full_redraw {
+        if self.glyph.is_none() {
             return Ok(());
         }
+
         let (gly, size) = self.glyph.as_ref().unwrap();
 
         #[cfg(feature = "icon-logs")]
@@ -202,47 +234,21 @@ impl Widget for Icon<'_> {
             *size
         );
 
-        let Point {
-            x: max_width,
-            y: max_height,
-        } = self.area.size();
-
-        let area_used = Rect::new(
-            self.area.min + Point::new(self.left_margin(), self.top_margin()),
-            self.area.max - Point::new(self.right_margin(), self.bottom_margin()),
-        );
-        assert!(
-            self.area.contains_rect(area_used),
-            "area doesn't contain area used. area: {}, area_used: {}",
-            self.area,
-            area_used
-        );
-
-        let bb = area_used.place_at(*size, self.h_align, self.v_align);
+        let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
 
         #[cfg(feature = "icon-logs")]
         log::trace!("'{}' | draw :: bb: {bb}, area: {}", self.name, self.area);
 
         gly.draw(|x, y, v| {
-            let point @ Point { x, y } = bb.min + Point::new(x, y);
-
-            let idx = 4 * (x + y * ctx.rect.width()) as usize;
-
-            let screen_bytes: &mut [u8; 4] = (&mut ctx.canvas[idx..idx + 4]).try_into().unwrap();
-
-            let existing_color = Color::from_argb8888(screen_bytes);
-            let color = self
-                .bg_drawn
-                .composite(existing_color)
-                .blend(self.fg_drawn, v);
-
-            *screen_bytes = color.argb8888();
-
+            let point = bb.min + Point { x, y };
             assert!(
                 self.area.contains(point),
                 "glyph not contained in area: {}, point: {point}",
                 self.area
             );
+            let color = self.bg_drawn.blend(self.fg_drawn, v);
+
+            ctx.put_composite(point, color);
         });
 
         #[cfg(feature = "icon-outlines")]
@@ -274,10 +280,10 @@ impl PositionedWidget for Icon<'_> {
         (self.area().height() as f32 * self.bottom_margin) as u32
     }
     fn left_margin(&self) -> u32 {
-        (self.area().height() as f32 * self.left_margin) as u32
+        (self.area().width() as f32 * self.left_margin) as u32
     }
     fn right_margin(&self) -> u32 {
-        (self.area().height() as f32 * self.right_margin) as u32
+        (self.area().width() as f32 * self.right_margin) as u32
     }
 }
 
@@ -345,6 +351,11 @@ impl<'glyph> IconBuilder<'glyph> {
     }
 
     pub fn build(&self, name: &str) -> Icon<'glyph> {
+        assert!((0.0..=1.0).contains(&self.top_margin));
+        assert!((0.0..=1.0).contains(&self.bottom_margin));
+        assert!((0.0..=1.0).contains(&self.left_margin));
+        assert!((0.0..=1.0).contains(&self.right_margin));
+
         Icon {
             font: self.font,
             icon: self.icon,
@@ -364,7 +375,9 @@ impl<'glyph> IconBuilder<'glyph> {
             v_align: self.v_align,
 
             area: Default::default(),
+            area_used: Default::default(),
             glyph: Default::default(),
+            should_redraw: Default::default(),
         }
     }
 }
