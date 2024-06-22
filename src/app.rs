@@ -78,7 +78,7 @@ impl App {
         //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
 
         let font_data = args
-            .font
+            .font_path
             .and_then(|ref path| {
                 std::fs::read(path)
                     .inspect_err(|err| log::warn!("app :: failed to load custom font. {err}"))
@@ -86,8 +86,12 @@ impl App {
             })
             .unwrap_or(FONT_DATA.to_vec());
 
-        let font =
-            rusttype::Font::try_from_vec(font_data).expect("error constructing FiraCodeMono");
+        let font: rusttype::Font<'static> =
+            rusttype::Font::try_from_vec_and_index(font_data, args.font_index).unwrap_or_else(
+                || {
+                    log::warn!("app :: Provided font failed to initialize.");
+                    rusttype::Font::try_from_vec(FONT_DATA.to_vec()).expect("built-in font failed to initialize")
+                });
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -131,6 +135,8 @@ impl App {
                     .desired_height(args.height)
                     .build("Updated Last"),
             ))
+        } else {
+            log::info!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
         }
 
         #[cfg(feature = "battery")]

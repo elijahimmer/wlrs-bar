@@ -20,23 +20,27 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    #[arg(long)]
-    font: Option<PathBuf>,
+    #[arg(long, value_name = "PATH")]
+    font_path: Option<PathBuf>,
+
+    #[arg(long, default_value_t = 0, value_name = "INDEX")]
+    font_index: u32,
 
     /// The timestamp of the last update
     #[cfg(feature = "updated-last")]
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "TIME_STAMP")]
     updated_last: Option<i64>,
 
+    /// the path to the battery's device folder
     #[cfg(feature = "battery")]
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "PATH")]
     battery_path: Option<PathBuf>,
 
-    /// how heigh the bar should be
+    /// how height the bar should be
     #[arg(long, default_value_t = 28)]
     height: u32,
 
-    /// how wide the bar should be (0 for full screen width)
+    /// how wide the bar should be (0 for screen width)
     #[arg(long, default_value_t = 0)]
     width: u32,
 }

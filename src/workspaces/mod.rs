@@ -387,7 +387,7 @@ impl<'font> WorkspacesBuilder<'font> {
 
     pub fn build(&self, name: &str) -> Result<Workspaces<'font>> {
         log::info!(
-            "'{name}' | Initializing with height: {}",
+            "'{name}' :: Initializing with height: {}",
             self.desired_height
         );
 
