@@ -17,7 +17,7 @@ pub struct Battery<'a> {
     h_align: Align,
     v_align: Align,
 
-    widgets: [TextBox<'a>; 2],
+    widgets: [Icon<'a>; 2],
 }
 
 impl Battery<'_> {
@@ -114,23 +114,23 @@ impl BatteryBuilder {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
         log::info!("'{name}' :: Initializing with height: {desired_height}");
 
-        let battery_textbox = TextBox::builder()
-            .text("")
-            .fg(crate::draw::color::PINE)
+        let battery_textbox = Icon::builder()
+            .icon('')
+            .fg(self.full_fg)
             .bg(self.bg)
-            .desired_text_height(desired_height * 8 / 10)
             .h_align(Align::End)
             .v_align(Align::Center)
-            .right_margin(desired_height / 3)
+            .right_margin(0.2)
+            .v_margins(0.2)
             .build(&(name.to_owned() + " Outline"));
 
-        let charging_textbox = TextBox::builder()
-            .text("󱐋")
+        let charging_textbox = Icon::builder()
+            .icon('󱐋')
             .fg(self.charging_fg)
             .bg(crate::draw::color::CLEAR)
             .h_align(Align::End)
             .v_align(Align::Center)
-            .right_margin(desired_height / 10)
+            .right_margin(0.1)
             .build(&(name.to_owned() + " Charging"));
 
         Battery {

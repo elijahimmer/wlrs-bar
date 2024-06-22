@@ -79,31 +79,6 @@ impl App {
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
-        widgets.push(Box::new(
-            crate::draw::icon::Icon::builder()
-                .fg(color::ROSE)
-                .bg(color::CLEAR)
-                //.icon('󱐋')
-                .icon('')
-                .font(&FONT)
-                .desired_text_height(args.height * 5 / 7)
-                .desired_width(args.height * 2)
-                .build("text"),
-        ));
-
-        //widgets.push(Box::new(
-        //    crate::battery::Battery::builder()
-        //        .bg(color::SURFACE)
-        //        .full_fg(color::PINE)
-        //        .charging_fg(color::GOLD)
-        //        .ok_fg(color::ROSE)
-        //        .warn_fg(color::LOVE)
-        //        .desired_height(args.height)
-        //        .desired_width(args.height)
-        //        .h_align(Align::End)
-        //        .build("Battery"),
-        //));
-
         #[cfg(feature = "clock")]
         widgets.push(Box::new(
             crate::clock::Clock::builder()
@@ -142,6 +117,20 @@ impl App {
                     .build("Updated Last"),
             ))
         }
+
+        #[cfg(feature = "battery")]
+        widgets.push(Box::new(
+            crate::battery::Battery::builder()
+                .bg(color::SURFACE)
+                .full_fg(color::PINE)
+                .charging_fg(color::GOLD)
+                .ok_fg(color::ROSE)
+                .warn_fg(color::LOVE)
+                .desired_height(args.height)
+                .desired_width(args.height)
+                .h_align(Align::End)
+                .build("Battery"),
+        ));
 
         let mut me = Self {
             //connection,

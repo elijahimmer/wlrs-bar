@@ -39,6 +39,10 @@ textbox-outlines-bounding = []
 textbox-outlines-area = []
 textbox-outlines-used = []
 
+icon-all = ["icon-logs", "icon-outlines"]
+icon-logs = []
+icon-outlines = []
+
 debug-rect-draw = []
 debug-rect-place-at = []
 
