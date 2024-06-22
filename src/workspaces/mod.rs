@@ -201,7 +201,7 @@ impl Workspaces<'_> {
                 self.last_hover = Some((idx, hover_point));
             }
 
-            wk_area = wk_area.x_shift(height as i32);
+            wk_area = wk_area.x_shift(height.try_into().unwrap());
         }
     }
 }

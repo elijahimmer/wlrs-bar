@@ -33,9 +33,12 @@ impl Clock<'_> {
         //    time.minute(),
         //    time.second()
         //);
-        self.__hours.set_text(&format2digits(time.hour() as u8));
-        self.minutes.set_text(&format2digits(time.minute() as u8));
-        self.seconds.set_text(&format2digits(time.second() as u8));
+        self.__hours
+            .set_text(&format2digits(time.hour().try_into().unwrap()));
+        self.minutes
+            .set_text(&format2digits(time.minute().try_into().unwrap()));
+        self.seconds
+            .set_text(&format2digits(time.second().try_into().unwrap()));
     }
 }
 

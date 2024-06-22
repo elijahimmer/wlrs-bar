@@ -86,7 +86,7 @@ impl Rect {
     pub fn shrink_top(self, amount: u32) -> Self {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
-            min: self.min.y_shift(amount as i32),
+            min: self.min.y_shift(i32::try_from(amount).unwrap()),
             ..self
         }
     }
@@ -95,7 +95,7 @@ impl Rect {
     pub fn shrink_bottom(self, amount: u32) -> Self {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
-            max: self.max.y_shift(-(amount as i32)),
+            max: self.max.y_shift(-(i32::try_from(amount).unwrap())),
             ..self
         }
     }
@@ -104,7 +104,7 @@ impl Rect {
     pub fn shrink_right(self, amount: u32) -> Self {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
-            max: self.max.x_shift(-(amount as i32)),
+            max: self.max.x_shift(-(i32::try_from(amount).unwrap())),
             ..self
         }
     }
@@ -113,7 +113,7 @@ impl Rect {
     pub fn shrink_left(self, amount: u32) -> Self {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         Self {
-            min: self.min.x_shift(amount as i32),
+            min: self.min.x_shift(i32::try_from(amount).unwrap()),
             ..self
         }
     }
@@ -230,10 +230,10 @@ impl Rect {
 
     pub fn damage_outline(self, surface: WlSurface) {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
-        let x_min = self.min.x as i32;
-        let x_max = self.max.x as i32 - 1;
-        let y_min = self.min.y as i32;
-        let y_max = self.max.y as i32 - 1;
+        let x_min = i32::try_from(self.min.x).unwrap();
+        let x_max = i32::try_from(self.max.x).unwrap() - 1;
+        let y_min = i32::try_from(self.min.y).unwrap();
+        let y_max = i32::try_from(self.max.y).unwrap() - 1;
 
         surface.damage(x_min, x_max, y_min, y_min);
         surface.damage(x_min, x_max, y_max, y_max);
@@ -242,9 +242,19 @@ impl Rect {
     }
 }
 
-impl From<rusttype::Rect<i32>> for Rect {
-    fn from(val: rusttype::Rect<i32>) -> Self {
+use num_traits::{AsPrimitive, FromPrimitive};
+impl<T: AsPrimitive<u32>> From<rusttype::Rect<T>> for Rect {
+    fn from(val: rusttype::Rect<T>) -> Self {
         Self::new(val.min, val.max)
+    }
+}
+
+impl<T: FromPrimitive> From<Rect> for rusttype::Rect<T> {
+    fn from(val: Rect) -> Self {
+        Self {
+            min: val.min.into(),
+            max: val.max.into(),
+        }
     }
 }
 

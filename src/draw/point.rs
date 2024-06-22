@@ -1,4 +1,5 @@
 use crate::draw::Rect;
+use num_traits::{AsPrimitive, FromPrimitive};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd)]
 pub struct Point {
@@ -36,33 +37,27 @@ impl Point {
     }
 }
 
-macro_rules! for_each_primative {
-    ($($t:ty)+) => ($(
-        impl From<($t, $t)> for Point {
-            fn from((x, y): ($t, $t)) -> Self {
-                assert!(0 as $t <= x, "x: {x}");
-                assert!(0 as $t <= y, "y: {y}");
-                Self::new(x as u32, y.clamp(0 as $t, (u32::MAX) as $t) as u32)
-            }
-        }
-
-        impl From<rusttype::Point<$t>> for Point {
-            fn from(val: rusttype::Point<$t>) -> Self {
-                assert!(0 as $t <= val.x, "x: {}", val.x);
-                assert!(0 as $t <= val.y, "y: {}", val.y);
-                Self::new(val.x as u32, val.y as u32)
-            }
-        }
-
-        impl From<Point> for rusttype::Point<$t> {
-            fn from(val: Point) -> Self {
-                Self { x: val.x as $t, y: val.y as $t }
-            }
-        }
-    )*)
+impl<T: AsPrimitive<u32>> From<(T, T)> for Point {
+    fn from((x, y): (T, T)) -> Self {
+        Self::new(x.as_(), y.as_())
+    }
 }
 
-for_each_primative!(u8 u16 u32 u64 i8 i16 i32 i64 f32 f64);
+impl<T: AsPrimitive<u32>> From<rusttype::Point<T>> for Point {
+    fn from(val: rusttype::Point<T>) -> Self {
+        Self::new(val.x.as_(), val.y.as_())
+    }
+}
+
+impl<T: FromPrimitive> From<Point> for rusttype::Point<T> {
+    fn from(val: Point) -> Self {
+        let x = T::from_u32(val.x)
+            .unwrap_or_else(|| panic!("X cannot fit in {}. val: {val}", stringify!(T)));
+        let y = T::from_u32(val.y)
+            .unwrap_or_else(|| panic!("Y cannot fit in {}. val: {val}", stringify!(T)));
+        Self { x, y }
+    }
+}
 
 use std::ops::Add;
 impl Add<Self> for Point {

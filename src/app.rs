@@ -68,7 +68,7 @@ impl App {
 
         layer_surface.set_anchor(Anchor::BOTTOM.complement()); // anchor to all sides but the bottom
         layer_surface.set_size(args.width, args.height);
-        layer_surface.set_exclusive_zone(args.height as i32);
+        layer_surface.set_exclusive_zone(args.height.try_into().unwrap());
         layer_surface.commit();
 
         let shm_state = Shm::bind(&globals, &qh).expect("wl_shm not available");
@@ -90,8 +90,10 @@ impl App {
             rusttype::Font::try_from_vec_and_index(font_data, args.font_index).unwrap_or_else(
                 || {
                     log::warn!("app :: Provided font failed to initialize.");
-                    rusttype::Font::try_from_vec(FONT_DATA.to_vec()).expect("built-in font failed to initialize")
-                });
+                    rusttype::Font::try_from_vec(FONT_DATA.to_vec())
+                        .expect("app :: built-in font failed to initialize")
+                },
+            );
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -453,14 +455,14 @@ impl App {
         self.pool
             .resize((self.width * self.height * 4) as usize)
             .unwrap();
-        let stride = self.width as i32 * 4;
+        let stride: i32 = i32::try_from(self.width).unwrap() * 4;
 
         // TODO: Reuse these buffers :)
         let (buffer, canvas) = self
             .pool
             .create_buffer(
-                self.width as i32,
-                self.height as i32,
+                self.width.try_into().unwrap(),
+                self.height.try_into().unwrap(),
                 stride,
                 wl_shm::Format::Argb8888,
             )
@@ -514,16 +516,21 @@ impl App {
             self.redraw = false;
 
             // Damage the entire window
-            surface.damage_buffer(0, 0, self.width as i32, self.height as i32);
+            surface.damage_buffer(
+                0,
+                0,
+                self.width.try_into().unwrap(),
+                self.height.try_into().unwrap(),
+            );
             ctx.damage.clear();
         } else {
             let damage = ctx.damage.clone();
             for dam in damage {
                 surface.damage_buffer(
-                    dam.min.x as i32,
-                    dam.min.y as i32,
-                    dam.max.x as i32,
-                    dam.max.y as i32,
+                    dam.min.x.try_into().unwrap(),
+                    dam.min.y.try_into().unwrap(),
+                    dam.max.x.try_into().unwrap(),
+                    dam.max.y.try_into().unwrap(),
                 );
 
                 #[cfg(feature = "damage")]
@@ -540,7 +547,7 @@ impl App {
         //log::info!("draw :: height: {}", self.height);
         //self.layer_surface.set_size(self.default_width, self.height + 1);
         //self.layer_surface
-        //    .set_exclusive_zone(self.height as i32 + 1);
+        //    .set_exclusive_zone(self.height.try_into().unwrap() + 1);
         //self.layer_surface.commit();
     }
 

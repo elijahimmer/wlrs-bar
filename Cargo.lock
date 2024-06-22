@@ -930,6 +930,7 @@ dependencies = [
  "chrono",
  "clap",
  "log",
+ "num-traits",
  "pretty_env_logger",
  "rusttype",
  "smithay-client-toolkit",
