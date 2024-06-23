@@ -255,7 +255,6 @@ impl BatteryBuilder {
             .bg(color::CLEAR)
             .build(&(name.to_owned() + " Progress"));
 
-
         Ok(Battery {
             name: name.into(),
             battery_path,

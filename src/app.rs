@@ -95,12 +95,6 @@ impl App {
                 rusttype::Font::try_from_bytes_and_index(DEFAULT_FONT_DATA, DEFAULT_FONT_INDEX)
                     .expect("app :: built-in font failed to initialize")
             });
-        //(DEFAULT_FONT_DATA.to_vec(), DEFAULT_FONT_INDEX)
-
-        //let font: rusttype::Font<'static> =
-        //
-        //
-        //    });
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -153,7 +147,7 @@ impl App {
             .font(font)
             .battery_path(args.battery_path)
             .bg(color::SURFACE)
-            .full_color(color::ROSE)
+            .full_color(color::FOAM)
             .normal_color(color::PINE)
             .charging_color(color::GOLD)
             .warn_color(color::LOVE)
