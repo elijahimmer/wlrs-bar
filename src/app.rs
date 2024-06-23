@@ -128,8 +128,9 @@ impl App {
 
         #[cfg(any(feature = "battery", feature = "updated-last"))]
         {
-            let mut right_container =
-                crate::widget::container::Container::builder().h_align(Align::End);
+            let mut right_container = crate::widget::container::Container::builder()
+                .h_align(Align::End)
+                .inner_h_align(Align::End);
 
             #[cfg(feature = "battery")]
             match crate::battery::Battery::builder()

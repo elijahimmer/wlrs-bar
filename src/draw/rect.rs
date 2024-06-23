@@ -127,17 +127,19 @@ impl Rect {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         assert!(
             self.max.x >= self.min.x + size.x,
-            "place at :: x too large: max: {} not > min: {} + size: {}",
+            "place at :: x too large: max: {} not > min: {} + size: {} ({})",
             self.max.x,
             self.min.x,
-            size.x
+            size.x,
+            self.min.x + size.x,
         );
         assert!(
             self.max.y >= self.min.y + size.y,
-            "place at :: y too large: max: {} not > min: {} + size: {}",
+            "place at :: y too large: max: {} not > min: {} + size: {} ({})",
             self.max.y,
             self.min.y,
-            size.y
+            size.y,
+            self.min.y + size.y,
         );
 
         let align = |align, min, max, size| {
