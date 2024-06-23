@@ -78,20 +78,20 @@ impl Battery<'_> {
             }
         };
 
-        //if status != self.status {
-        let c = match status {
-            BatteryStatus::Full => self.full_color,
-            BatteryStatus::Charging => self.charging_color,
-            BatteryStatus::Normal => self.normal_color,
-            BatteryStatus::Warn => self.warn_color,
-            BatteryStatus::Critical => self.critical_color,
-        };
+        if status != self.status {
+            let c = match status {
+                BatteryStatus::Full => self.full_color,
+                BatteryStatus::Charging => self.charging_color,
+                BatteryStatus::Normal => self.normal_color,
+                BatteryStatus::Warn => self.warn_color,
+                BatteryStatus::Critical => self.critical_color,
+            };
 
-        self.progress.set_filled_color(c);
-        self.battery.set_fg(c);
-        self.status = status;
-        //log::trace!("'{}' | update :: color: {c}", self.name);
-        //}
+            self.progress.set_filled_color(c);
+            self.battery.set_fg(c);
+            self.status = status;
+            //log::trace!("'{}' | update :: color: {c}", self.name);
+        }
 
         self.progress.set_progress(charge);
 
@@ -145,15 +145,15 @@ impl Widget for Battery<'_> {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         log::info!("drwaing");
+        //if self.progress.should_redraw() {
         self.area.draw(self.bg_color, ctx);
-        if self.progress.should_redraw() {
-            self.battery.draw(ctx)?;
-            self.progress.draw(ctx)?;
-            log::trace!("status: {:?}", self.status);
-            if self.status == BatteryStatus::Charging {
-                self.charging.draw(ctx)?;
-            }
+        self.battery.draw(ctx)?;
+        self.progress.draw(ctx)?;
+        log::trace!("status: {:?}", self.status);
+        if self.status == BatteryStatus::Charging {
+            self.charging.draw(ctx)?;
         }
+        //}
 
         Ok(())
     }
@@ -212,7 +212,7 @@ impl<'font> BatteryBuilder<'font> {
             .font(font.clone())
             .icon('')
             .fg(self.normal_color)
-            .bg(self.bg)
+            .bg(color::CLEAR)
             .h_align(Align::End)
             .v_align(Align::Center)
             .right_margin(0.12)
@@ -231,8 +231,9 @@ impl<'font> BatteryBuilder<'font> {
             .build(&(name.to_owned() + " Charging"));
 
         let progress = Progress::builder()
-            .v_margins(0.4)
-            .left_margin(0.17)
+            .top_margin(0.25)
+            .bottom_margin(0.22)
+            .left_margin(0.19)
             .right_margin(0.2)
             .starting_bound(0.0)
             .ending_bound(1.0)
