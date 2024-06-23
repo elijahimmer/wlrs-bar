@@ -4,6 +4,7 @@ use crate::widget::{ClickType, Widget};
 use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
 use rusttype::Font;
+use std::marker::PhantomData;
 
 pub struct UpdatedLast {
     name: Box<str>,
@@ -13,7 +14,7 @@ pub struct UpdatedLast {
 }
 
 impl UpdatedLast {
-    pub fn builder() -> UpdatedLastBuilder {
+    pub fn builder() -> UpdatedLastBuilder<NeedsFont> {
         Default::default()
     }
 }
@@ -106,7 +107,7 @@ fn label_from_time(delta_time: TimeDelta) -> String {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct UpdatedLastBuilder {
+pub struct UpdatedLastBuilder<T> {
     font: Option<Font<'static>>,
     time_stamp: i64,
     desired_height: Option<u32>,
@@ -114,30 +115,44 @@ pub struct UpdatedLastBuilder {
     v_align: Align,
     fg: Color,
     bg: Color,
+
+    _state: PhantomData<T>,
 }
 
-impl UpdatedLastBuilder {
-    pub fn new() -> Self {
+impl<T> UpdatedLastBuilder<T> {
+    pub fn new() -> UpdatedLastBuilder<NeedsFont> {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'static>, font;
         i64, time_stamp;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg;
     }
 
+    pub fn font(self, font: Font<'static>) -> UpdatedLastBuilder<HasFont> {
+        UpdatedLastBuilder {
+            _state: PhantomData,
+            font: Some(font),
+
+            time_stamp: self.time_stamp,
+            desired_height: self.desired_height,
+            h_align: self.h_align,
+            v_align: self.v_align,
+            fg: self.fg,
+            bg: self.bg,
+        }
+    }
+}
+
+impl UpdatedLastBuilder<HasFont> {
     pub fn build(&self, name: &str) -> UpdatedLast {
         log::info!(
             "'{name}' :: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
-        let font = self
-            .font
-            .clone()
-            .unwrap_or_else(|| panic!("'{}' A font must be provided", name));
+        let font = self.font.clone().unwrap();
 
         let time = chrono::DateTime::from_timestamp(self.time_stamp, 0)
             .unwrap_or(chrono::DateTime::UNIX_EPOCH);

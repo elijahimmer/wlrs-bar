@@ -12,6 +12,7 @@ impl Color {
     }
 
     pub fn blend(self, other: Self, ratio: f32) -> Self {
+        assert!((-0.1..=1.1).contains(&ratio));
         let ratio = ratio.clamp(0.0, 1.0);
         Self {
             r: self.r + ((other.r as f32 - self.r as f32) * ratio) as u8,
@@ -44,7 +45,8 @@ impl Color {
 
     /// set the alpha to the ratio provided.
     pub fn dilute_f32(self, alpha: f32) -> Self {
-        assert!((0.0..=1.0).contains(&alpha));
+        assert!((-0.1..=1.1).contains(&alpha));
+        let alpha = alpha.clamp(0.0, 1.0);
         Self {
             a: (alpha * 255.0) as u8,
             ..self

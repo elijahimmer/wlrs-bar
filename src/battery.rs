@@ -3,6 +3,7 @@ use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
 use rusttype::Font;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 
 // TODO: I should make this not hard coded and read all of them.
@@ -41,8 +42,8 @@ pub struct Battery {
 }
 
 impl Battery {
-    pub fn builder() -> BatteryBuilder {
-        BatteryBuilder::new()
+    pub fn builder() -> BatteryBuilder<NeedsFont> {
+        BatteryBuilder::<NeedsFont>::new()
     }
 
     pub fn update(&mut self) -> Result<()> {
@@ -172,7 +173,7 @@ impl Widget for Battery {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BatteryBuilder {
+pub struct BatteryBuilder<T> {
     font: Option<Font<'static>>,
     desired_height: Option<u32>,
     desired_width: Option<u32>,
@@ -186,21 +187,45 @@ pub struct BatteryBuilder {
     normal_color: Color,
     warn_color: Color,
     critical_color: Color,
+
+    _state: PhantomData<T>,
 }
 
-impl BatteryBuilder {
-    pub fn new() -> Self {
+impl<T> BatteryBuilder<T> {
+    pub fn new() -> BatteryBuilder<NeedsFont> {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'static>, font;
         Color, bg full_color charging_color normal_color warn_color critical_color;
         u32, desired_height desired_width;
         Align, v_align h_align;
         Option<PathBuf>, battery_path;
     }
 
+    pub fn font(self, font: Font<'static>) -> BatteryBuilder<HasFont> {
+        BatteryBuilder {
+            _state: PhantomData,
+            font: Some(font),
+
+            h_align: self.h_align,
+            v_align: self.v_align,
+
+            bg: self.bg,
+            full_color: self.full_color,
+            charging_color: self.charging_color,
+            normal_color: self.normal_color,
+            warn_color: self.warn_color,
+            critical_color: self.critical_color,
+
+            battery_path: self.battery_path,
+            desired_height: self.desired_height,
+            desired_width: self.desired_width,
+        }
+    }
+}
+
+impl BatteryBuilder<HasFont> {
     pub fn build(&self, name: &str) -> Result<Battery> {
         let battery_path = self
             .battery_path
@@ -215,10 +240,7 @@ impl BatteryBuilder {
 
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
         log::info!("'{name}' :: Initializing with height: {desired_height}");
-        let font = self
-            .font
-            .clone()
-            .unwrap_or_else(|| panic!("'{}' A font must be provided", name));
+        let font = self.font.clone().unwrap();
 
         let battery = Icon::builder()
             .font(font.clone())

@@ -3,6 +3,7 @@ use crate::widget::{ClickType, PositionedWidget, Widget};
 use anyhow::Result;
 
 use rusttype::{Font, PositionedGlyph, Scale};
+use std::marker::PhantomData;
 
 /// A single character displayed as large as possible
 pub struct Icon {
@@ -110,8 +111,8 @@ fn render_icon<'a>(
 }
 
 impl Icon {
-    pub fn builder() -> IconBuilder {
-        IconBuilder::new()
+    pub fn builder() -> IconBuilder<NeedsFont> {
+        Default::default()
     }
 
     pub fn set_fg(&mut self, fg: Color) {
@@ -288,8 +289,8 @@ impl PositionedWidget for Icon {
     }
 }
 
-#[derive(Clone)]
-pub struct IconBuilder {
+#[derive(Clone, Default)]
+pub struct IconBuilder<T> {
     font: Option<Font<'static>>,
     icon: char,
     fg: Color,
@@ -308,30 +309,16 @@ pub struct IconBuilder {
 
     h_align: Align,
     v_align: Align,
+
+    _state: PhantomData<T>,
 }
 
-impl IconBuilder {
-    pub fn new() -> IconBuilder {
-        Self {
-            font: None,
-
-            top_margin: 0.0,
-            bottom_margin: 0.0,
-            left_margin: 0.0,
-            right_margin: 0.0,
-
-            desired_height: Default::default(),
-            desired_width: Default::default(),
-            fg: Default::default(),
-            bg: Default::default(),
-            icon: Default::default(),
-            h_align: Default::default(),
-            v_align: Default::default(),
-        }
+impl<T> IconBuilder<T> {
+    pub fn new() -> IconBuilder<NeedsFont> {
+        Default::default()
     }
 
     crate::builder_fields! {
-        Font<'static>, font;
         u32, desired_height desired_width;
         f32, top_margin bottom_margin left_margin right_margin;
         Color, fg bg;
@@ -351,6 +338,27 @@ impl IconBuilder {
         self
     }
 
+    pub fn font(self, font: Font<'static>) -> IconBuilder<HasFont> {
+        IconBuilder {
+            _state: PhantomData,
+            font: Some(font),
+            icon: self.icon,
+            fg: self.fg,
+            bg: self.bg,
+            desired_height: self.desired_height,
+            desired_width: self.desired_width,
+
+            top_margin: self.top_margin,
+            bottom_margin: self.bottom_margin,
+            left_margin: self.left_margin,
+            right_margin: self.right_margin,
+            h_align: self.h_align,
+            v_align: self.v_align,
+        }
+    }
+}
+
+impl IconBuilder<HasFont> {
     pub fn build(&self, name: &str) -> Icon {
         assert!((0.0..=1.0).contains(&self.top_margin));
         assert!((0.0..=1.0).contains(&self.bottom_margin));
@@ -359,10 +367,7 @@ impl IconBuilder {
 
         Icon {
             name: name.into(),
-            font: self
-                .font
-                .clone()
-                .unwrap_or_else(|| panic!("'{}' no font provided", name)),
+            font: self.font.clone().unwrap(),
             icon: self.icon,
             fg: self.fg,
             bg: self.bg,
@@ -381,11 +386,5 @@ impl IconBuilder {
             glyph: Default::default(),
             should_redraw: Default::default(),
         }
-    }
-}
-
-impl Default for IconBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

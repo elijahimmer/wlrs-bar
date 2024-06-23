@@ -8,6 +8,7 @@ use worker::{work, ManagerMsg, WorkerMsg};
 
 use anyhow::Result;
 use rusttype::Font;
+use std::marker::PhantomData;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::JoinHandle;
 
@@ -44,13 +45,13 @@ pub struct Workspaces {
     worker_send: Sender<ManagerMsg>,
     worker_recv: Receiver<WorkerMsg>,
 
-    workspace_builder: TextBoxBuilder,
+    workspace_builder: TextBoxBuilder<HasFont>,
     workspaces: Vec<(WorkspaceID, TextBox)>,
     active_workspace: WorkspaceID,
 }
 
 impl Workspaces {
-    pub fn builder() -> WorkspacesBuilder {
+    pub fn builder() -> WorkspacesBuilder<NeedsFont> {
         Default::default()
     }
 
@@ -375,7 +376,7 @@ impl Widget for Workspaces {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct WorkspacesBuilder {
+pub struct WorkspacesBuilder<T> {
     font: Option<Font<'static>>,
     desired_height: u32,
     h_align: Align,
@@ -386,20 +387,40 @@ pub struct WorkspacesBuilder {
     active_bg: Color,
     hover_fg: Color,
     hover_bg: Color,
+
+    _state: PhantomData<T>,
 }
 
-impl WorkspacesBuilder {
-    pub fn new() -> Self {
+impl<T> WorkspacesBuilder<T> {
+    pub fn new() -> WorkspacesBuilder<NeedsFont> {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'static>, font;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg active_fg active_bg hover_fg hover_bg;
     }
 
+    pub fn font(self, font: Font<'static>) -> WorkspacesBuilder<HasFont> {
+        WorkspacesBuilder {
+            _state: PhantomData,
+            font: Some(font),
+
+            h_align: self.h_align,
+            v_align: self.v_align,
+            desired_height: self.desired_height,
+            fg: self.fg,
+            bg: self.bg,
+            active_fg: self.active_fg,
+            active_bg: self.active_bg,
+            hover_fg: self.hover_fg,
+            hover_bg: self.hover_bg,
+        }
+    }
+}
+
+impl WorkspacesBuilder<HasFont> {
     pub fn build(&self, name: &str) -> Result<Workspaces> {
         log::info!(
             "'{name}' :: Initializing with height: {}",

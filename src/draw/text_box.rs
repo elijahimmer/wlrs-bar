@@ -3,9 +3,8 @@ use crate::widget::*;
 
 use anyhow::Result;
 use rusttype::{Font, PositionedGlyph, Scale};
+use std::marker::PhantomData;
 use std::num::NonZeroUsize;
-
-type Glyph = (PositionedGlyph<'static>, Rect);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 enum RedrawState {
@@ -38,7 +37,7 @@ pub struct TextBox {
     v_align: Align,
 
     glyphs_size: Option<Point>,
-    glyphs: Option<Vec<Glyph>>,
+    glyphs: Option<Vec<(PositionedGlyph<'static>, Rect)>>,
 
     area: Rect,
     desired_text_height: u32,
@@ -47,7 +46,11 @@ pub struct TextBox {
     redraw: RedrawState,
 }
 
-fn render_glyphs(font: &Font<'static>, text: &str, height: u32) -> (Vec<Glyph>, Point) {
+fn render_glyphs(
+    font: &Font<'static>,
+    text: &str,
+    height: u32,
+) -> (Vec<(PositionedGlyph<'static>, Rect)>, Point) {
     let scale = Scale::uniform(height as f32);
 
     let v_metrics = font.v_metrics(scale);
@@ -153,8 +156,8 @@ impl TextBox {
         }
     }
 
-    pub fn builder() -> TextBoxBuilder {
-        TextBoxBuilder::new()
+    pub fn builder() -> TextBoxBuilder<NeedsFont> {
+        TextBoxBuilder::<NeedsFont>::new()
     }
 }
 
@@ -409,7 +412,8 @@ impl Widget for TextBox {
     }
 
     fn motion(&mut self, point: Point) -> Result<()> {
-        //log::debug!("'{}' | motion :: Point: {point}", self.name);
+        #[cfg(feature = "textbox-logs")]
+        log::debug!("'{}' | motion :: Point: {point}", self.name);
         assert!(self.area.contains(point));
 
         if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
@@ -425,8 +429,9 @@ impl Widget for TextBox {
         Ok(())
     }
 
-    fn motion_leave(&mut self, point: Point) -> Result<()> {
-        log::debug!("'{}' | motion_leave :: Point: {point}", self.name);
+    fn motion_leave(&mut self, _point: Point) -> Result<()> {
+        #[cfg(feature = "textbox-logs")]
+        log::debug!("'{}' | motion_leave :: Point: {_point}", self.name);
 
         if self.fg != self.fg_drawn {
             self.redraw = RedrawState::Full;
@@ -457,15 +462,16 @@ impl PositionedWidget for TextBox {
     }
 }
 
-#[derive(Clone)]
-pub struct TextBoxBuilder {
+#[derive(Clone, Default)]
+pub struct TextBoxBuilder<T> {
     font: Option<Font<'static>>,
+
     text: Box<str>,
     fg: Color,
     bg: Color,
     hover_fg: Option<Color>,
     hover_bg: Option<Color>,
-    desired_text_height: u32,
+    desired_text_height: Option<u32>,
     desired_width: Option<u32>,
 
     top_margin: u32,
@@ -474,31 +480,41 @@ pub struct TextBoxBuilder {
     right_margin: u32,
     h_align: Align,
     v_align: Align,
+
+    _state: PhantomData<T>,
 }
 
-impl TextBoxBuilder {
-    pub fn new() -> TextBoxBuilder {
-        Self {
-            desired_text_height: u32::MAX,
-            desired_width: None,
-            font: None,
+#[derive(Clone, Debug, Default)]
+pub struct NeedsFont {}
+#[derive(Clone, Debug, Default)]
+pub struct HasFont {}
 
-            fg: Default::default(),
-            bg: Default::default(),
-            hover_fg: Default::default(),
-            hover_bg: Default::default(),
-            text: Default::default(),
-            top_margin: Default::default(),
-            bottom_margin: Default::default(),
-            left_margin: Default::default(),
-            right_margin: Default::default(),
-            h_align: Default::default(),
-            v_align: Default::default(),
+impl<T> TextBoxBuilder<T> {
+    pub fn new() -> TextBoxBuilder<NeedsFont> {
+        Default::default()
+    }
+    pub fn font(self, font: Font<'static>) -> TextBoxBuilder<HasFont> {
+        TextBoxBuilder {
+            font: Some(font),
+            _state: PhantomData::<HasFont> {},
+
+            text: self.text,
+            fg: self.fg,
+            bg: self.bg,
+            hover_fg: self.hover_fg,
+            hover_bg: self.hover_bg,
+            desired_text_height: self.desired_text_height,
+            desired_width: self.desired_width,
+
+            top_margin: self.top_margin,
+            bottom_margin: self.bottom_margin,
+            left_margin: self.left_margin,
+            right_margin: self.right_margin,
+            h_align: self.h_align,
+            v_align: self.v_align,
         }
     }
-
     crate::builder_fields! {
-        Font<'static>, font;
         u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
         Color, fg bg hover_fg hover_bg;
         Align, v_align h_align;
@@ -516,13 +532,12 @@ impl TextBoxBuilder {
         self.bottom_margin = margin / 2;
         self
     }
+}
 
+impl TextBoxBuilder<HasFont> {
     pub fn build(&self, name: &str) -> TextBox {
         TextBox {
-            font: self
-                .font
-                .to_owned()
-                .unwrap_or_else(|| panic!("'{}' No font provided", name)),
+            font: self.font.to_owned().expect("should be impossible"),
             text: self.text.clone(),
             fg_drawn: self.fg,
             bg_drawn: self.bg,
@@ -530,7 +545,7 @@ impl TextBoxBuilder {
             bg: self.bg,
             hover_fg: self.hover_fg,
             hover_bg: self.hover_bg,
-            desired_text_height: self.desired_text_height,
+            desired_text_height: self.desired_text_height.unwrap_or(u32::MAX),
             desired_width: self.desired_width,
             name: name.into(),
 
@@ -546,11 +561,5 @@ impl TextBoxBuilder {
             glyphs_size: Default::default(),
             redraw: Default::default(),
         }
-    }
-}
-
-impl Default for TextBoxBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
