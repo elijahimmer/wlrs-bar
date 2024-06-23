@@ -36,7 +36,7 @@ pub fn stack_widgets_right(
             starting_from,
             Point {
                 x: starting_from.x + w,
-                y: max_height,
+                y: area.max.y,
             },
         );
         assert!(area.contains_rect(new_area));
@@ -89,9 +89,10 @@ pub fn stack_widgets_left(
             starting_from,
             Point {
                 x: starting_from.x - w,
-                y: 0,
+                y: area.min.y,
             },
         );
+        log::trace!("stack_widgets_left :: new_area: {new_area}, max_area: {area}");
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(-(i32::try_from(w).unwrap()));
         new_area
