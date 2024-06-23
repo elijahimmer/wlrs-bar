@@ -8,7 +8,8 @@ pub mod text_box;
 
 use prelude::*;
 
-pub static FONT_DATA: &[u8] = include_bytes!("../../fonts/FiraCodeNerdFontMono-Regular.ttf");
+pub const DEFAULT_FONT_DATA: &[u8] = include_bytes!("../../fonts/FiraCodeNerdFontMono-Regular.ttf");
+pub const DEFAULT_FONT_INDEX: u32 = 0;
 
 // which edge to align to
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]

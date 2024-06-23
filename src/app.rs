@@ -77,23 +77,30 @@ impl App {
             SlotPool::new(4000 * args.height as usize, &shm_state).expect("Failed to create pool");
         //                ^^^^ seems like a reasonable default, 4, 1000 size buffers
 
-        let font_data = args
+        let font: rusttype::Font<'static> = args
             .font_path
             .and_then(|ref path| {
                 std::fs::read(path)
                     .inspect_err(|err| log::warn!("app :: failed to load custom font. {err}"))
                     .ok()
             })
-            .unwrap_or(FONT_DATA.to_vec());
+            .and_then(|data| {
+                let f = rusttype::Font::try_from_vec_and_index(data.to_vec(), args.font_index);
+                if f.is_none() {
+                    log::warn!("app :: failed to initialize custom font.");
+                }
+                f
+            })
+            .unwrap_or_else(|| {
+                rusttype::Font::try_from_bytes_and_index(DEFAULT_FONT_DATA, DEFAULT_FONT_INDEX)
+                    .expect("app :: built-in font failed to initialize")
+            });
+        //(DEFAULT_FONT_DATA.to_vec(), DEFAULT_FONT_INDEX)
 
-        let font: rusttype::Font<'static> =
-            rusttype::Font::try_from_vec_and_index(font_data, args.font_index).unwrap_or_else(
-                || {
-                    log::warn!("app :: Provided font failed to initialize.");
-                    rusttype::Font::try_from_vec(FONT_DATA.to_vec())
-                        .expect("app :: built-in font failed to initialize")
-                },
-            );
+        //let font: rusttype::Font<'static> =
+        //
+        //
+        //    });
 
         let mut widgets: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -138,7 +145,7 @@ impl App {
                     .build("Updated Last"),
             ))
         } else {
-            log::info!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
+            log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
         }
 
         #[cfg(feature = "battery")]

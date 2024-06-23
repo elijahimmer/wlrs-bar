@@ -5,8 +5,8 @@ use anyhow::Result;
 use rusttype::{Font, PositionedGlyph, Scale};
 
 /// A single character displayed as large as possible
-pub struct Icon<'glyph> {
-    font: Font<'glyph>,
+pub struct Icon {
+    font: Font<'static>,
 
     icon: char,
     name: Box<str>,
@@ -26,7 +26,7 @@ pub struct Icon<'glyph> {
     h_align: Align,
     v_align: Align,
 
-    glyph: Option<(PositionedGlyph<'glyph>, Point)>,
+    glyph: Option<(PositionedGlyph<'static>, Point)>,
     should_redraw: bool,
 
     area: Rect,
@@ -35,12 +35,12 @@ pub struct Icon<'glyph> {
     desired_width: Option<u32>,
 }
 
-fn render_icon<'a, 'font>(
+fn render_icon<'a>(
     name: &'a str,
-    font: &'a Font<'font>,
+    font: &'a Font<'static>,
     icon: char,
     max_size: Point,
-) -> (PositionedGlyph<'font>, Point) {
+) -> (PositionedGlyph<'static>, Point) {
     let Point {
         x: max_width,
         y: max_height,
@@ -109,8 +109,8 @@ fn render_icon<'a, 'font>(
     (new_glyph, new_size)
 }
 
-impl Icon<'_> {
-    pub fn builder<'a>() -> IconBuilder<'a> {
+impl Icon {
+    pub fn builder() -> IconBuilder {
         IconBuilder::new()
     }
 
@@ -129,7 +129,7 @@ impl Icon<'_> {
     }
 }
 
-impl Widget for Icon<'_> {
+impl Widget for Icon {
     fn name(&self) -> &str {
         &self.name
     }
@@ -273,7 +273,7 @@ impl Widget for Icon<'_> {
     }
 }
 
-impl PositionedWidget for Icon<'_> {
+impl PositionedWidget for Icon {
     fn top_margin(&self) -> u32 {
         (self.area().height() as f32 * self.top_margin) as u32
     }
@@ -289,8 +289,8 @@ impl PositionedWidget for Icon<'_> {
 }
 
 #[derive(Clone)]
-pub struct IconBuilder<'glyph> {
-    font: Option<Font<'glyph>>,
+pub struct IconBuilder {
+    font: Option<Font<'static>>,
     icon: char,
     fg: Color,
     bg: Color,
@@ -310,8 +310,8 @@ pub struct IconBuilder<'glyph> {
     v_align: Align,
 }
 
-impl<'glyph> IconBuilder<'glyph> {
-    pub fn new() -> IconBuilder<'glyph> {
+impl IconBuilder {
+    pub fn new() -> IconBuilder {
         Self {
             font: None,
 
@@ -331,7 +331,7 @@ impl<'glyph> IconBuilder<'glyph> {
     }
 
     crate::builder_fields! {
-        Font<'glyph>, font;
+        Font<'static>, font;
         u32, desired_height desired_width;
         f32, top_margin bottom_margin left_margin right_margin;
         Color, fg bg;
@@ -351,7 +351,7 @@ impl<'glyph> IconBuilder<'glyph> {
         self
     }
 
-    pub fn build(&self, name: &str) -> Icon<'glyph> {
+    pub fn build(&self, name: &str) -> Icon {
         assert!((0.0..=1.0).contains(&self.top_margin));
         assert!((0.0..=1.0).contains(&self.bottom_margin));
         assert!((0.0..=1.0).contains(&self.left_margin));
@@ -384,7 +384,7 @@ impl<'glyph> IconBuilder<'glyph> {
     }
 }
 
-impl<'glyph> Default for IconBuilder<'glyph> {
+impl Default for IconBuilder {
     fn default() -> Self {
         Self::new()
     }

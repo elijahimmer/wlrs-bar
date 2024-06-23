@@ -5,20 +5,20 @@ use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
 use rusttype::Font;
 
-pub struct UpdatedLast<'font> {
+pub struct UpdatedLast {
     name: Box<str>,
     time: DateTime<Utc>,
-    text: TextBox<'font>,
+    text: TextBox,
     last_text_set: Box<str>,
 }
 
-impl UpdatedLast<'_> {
-    pub fn builder<'a>() -> UpdatedLastBuilder<'a> {
+impl UpdatedLast {
+    pub fn builder() -> UpdatedLastBuilder {
         Default::default()
     }
 }
 
-impl Widget for UpdatedLast<'_> {
+impl Widget for UpdatedLast {
     fn name(&self) -> &str {
         &self.name
     }
@@ -106,8 +106,8 @@ fn label_from_time(delta_time: TimeDelta) -> String {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct UpdatedLastBuilder<'font> {
-    font: Option<Font<'font>>,
+pub struct UpdatedLastBuilder {
+    font: Option<Font<'static>>,
     time_stamp: i64,
     desired_height: Option<u32>,
     h_align: Align,
@@ -116,20 +116,20 @@ pub struct UpdatedLastBuilder<'font> {
     bg: Color,
 }
 
-impl<'font> UpdatedLastBuilder<'font> {
+impl UpdatedLastBuilder {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'font>, font;
+        Font<'static>, font;
         i64, time_stamp;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg;
     }
 
-    pub fn build(&self, name: &str) -> UpdatedLast<'font> {
+    pub fn build(&self, name: &str) -> UpdatedLast {
         log::info!(
             "'{name}' :: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)

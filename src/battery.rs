@@ -18,7 +18,7 @@ pub enum BatteryStatus {
     Critical,
 }
 
-pub struct Battery<'a> {
+pub struct Battery {
     name: Box<str>,
     battery_path: PathBuf,
     desired_height: u32,
@@ -26,8 +26,8 @@ pub struct Battery<'a> {
     h_align: Align,
     v_align: Align,
 
-    battery: Icon<'a>,
-    charging: Icon<'a>,
+    battery: Icon,
+    charging: Icon,
     progress: Progress,
 
     status: BatteryStatus,
@@ -40,8 +40,8 @@ pub struct Battery<'a> {
     critical_color: Color,
 }
 
-impl Battery<'_> {
-    pub fn builder<'a>() -> BatteryBuilder<'a> {
+impl Battery {
+    pub fn builder() -> BatteryBuilder {
         BatteryBuilder::new()
     }
 
@@ -66,9 +66,10 @@ impl Battery<'_> {
             "Discharging" if charge < 0.25 => BatteryStatus::Warn,
             "Discharging" => BatteryStatus::Normal,
             "Critical" => BatteryStatus::Critical,
+            "Not charging" | "Full" => BatteryStatus::Full,
+            "Charging" if charge < 0.95 => BatteryStatus::Full,
             "Charging" => BatteryStatus::Charging,
             "Warn" => BatteryStatus::Warn,
-            "Not charging" | "Full" => BatteryStatus::Full,
             _ => {
                 log::warn!(
                     "'{}' | update :: unknown battery status: '{status}'",
@@ -99,7 +100,7 @@ impl Battery<'_> {
     }
 }
 
-impl Widget for Battery<'_> {
+impl Widget for Battery {
     fn name(&self) -> &str {
         &self.name
     }
@@ -171,8 +172,8 @@ impl Widget for Battery<'_> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BatteryBuilder<'font> {
-    font: Option<Font<'font>>,
+pub struct BatteryBuilder {
+    font: Option<Font<'static>>,
     desired_height: Option<u32>,
     desired_width: Option<u32>,
     battery_path: Option<PathBuf>,
@@ -187,20 +188,31 @@ pub struct BatteryBuilder<'font> {
     critical_color: Color,
 }
 
-impl<'font> BatteryBuilder<'font> {
+impl BatteryBuilder {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'font>, font;
+        Font<'static>, font;
         Color, bg full_color charging_color normal_color warn_color critical_color;
         u32, desired_height desired_width;
         Align, v_align h_align;
         Option<PathBuf>, battery_path;
     }
 
-    pub fn build(&self, name: &str) -> Result<Battery<'font>> {
+    pub fn build(&self, name: &str) -> Result<Battery> {
+        let battery_path = self
+            .battery_path
+            .clone()
+            .unwrap_or_else(|| DEFAULT_BATTERY_PATH.into());
+
+        assert!(battery_path.is_absolute());
+        let battery_path = std::fs::canonicalize(&battery_path).unwrap_or(battery_path);
+
+        // should error if the path doesn't exist
+        _ = std::fs::read_dir(&battery_path)?;
+
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
         log::info!("'{name}' :: Initializing with height: {desired_height}");
         let font = self
@@ -243,15 +255,6 @@ impl<'font> BatteryBuilder<'font> {
             .bg(color::CLEAR)
             .build(&(name.to_owned() + " Progress"));
 
-        let battery_path = self
-            .battery_path
-            .clone()
-            .unwrap_or_else(|| DEFAULT_BATTERY_PATH.into());
-        assert!(battery_path.is_absolute());
-        let battery_path = std::fs::canonicalize(battery_path.clone()).unwrap_or(battery_path);
-
-        // should error if the path doesn't exist
-        _ = std::fs::read_dir(battery_path.clone())?;
 
         Ok(Battery {
             name: name.into(),

@@ -5,7 +5,7 @@ use anyhow::Result;
 use rusttype::{Font, PositionedGlyph, Scale};
 use std::num::NonZeroUsize;
 
-type Glyph<'glyphs> = (PositionedGlyph<'glyphs>, Rect);
+type Glyph = (PositionedGlyph<'static>, Rect);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 enum RedrawState {
@@ -16,8 +16,8 @@ enum RedrawState {
 }
 
 #[derive(Clone)]
-pub struct TextBox<'glyphs> {
-    font: Font<'glyphs>,
+pub struct TextBox {
+    font: Font<'static>,
 
     text: Box<str>,
     name: Box<str>,
@@ -38,7 +38,7 @@ pub struct TextBox<'glyphs> {
     v_align: Align,
 
     glyphs_size: Option<Point>,
-    glyphs: Option<Vec<Glyph<'glyphs>>>,
+    glyphs: Option<Vec<Glyph>>,
 
     area: Rect,
     desired_text_height: u32,
@@ -47,7 +47,7 @@ pub struct TextBox<'glyphs> {
     redraw: RedrawState,
 }
 
-fn render_glyphs<'font>(font: &Font<'font>, text: &str, height: u32) -> (Vec<Glyph<'font>>, Point) {
+fn render_glyphs(font: &Font<'static>, text: &str, height: u32) -> (Vec<Glyph>, Point) {
     let scale = Scale::uniform(height as f32);
 
     let v_metrics = font.v_metrics(scale);
@@ -80,7 +80,7 @@ fn render_glyphs<'font>(font: &Font<'font>, text: &str, height: u32) -> (Vec<Gly
     )
 }
 
-impl<'a> TextBox<'a> {
+impl TextBox {
     pub fn set_text(&mut self, new_text: &str) {
         let new_text = new_text.trim();
         if new_text.is_empty() {
@@ -153,12 +153,12 @@ impl<'a> TextBox<'a> {
         }
     }
 
-    pub fn builder() -> TextBoxBuilder<'a> {
+    pub fn builder() -> TextBoxBuilder {
         TextBoxBuilder::new()
     }
 }
 
-impl Widget for TextBox<'_> {
+impl Widget for TextBox {
     fn name(&self) -> &str {
         &self.name
     }
@@ -442,7 +442,7 @@ impl Widget for TextBox<'_> {
     }
 }
 
-impl PositionedWidget for TextBox<'_> {
+impl PositionedWidget for TextBox {
     fn top_margin(&self) -> u32 {
         self.top_margin
     }
@@ -458,8 +458,8 @@ impl PositionedWidget for TextBox<'_> {
 }
 
 #[derive(Clone)]
-pub struct TextBoxBuilder<'glyphs> {
-    font: Option<Font<'glyphs>>,
+pub struct TextBoxBuilder {
+    font: Option<Font<'static>>,
     text: Box<str>,
     fg: Color,
     bg: Color,
@@ -476,8 +476,8 @@ pub struct TextBoxBuilder<'glyphs> {
     v_align: Align,
 }
 
-impl<'glyphs> TextBoxBuilder<'glyphs> {
-    pub fn new() -> TextBoxBuilder<'glyphs> {
+impl TextBoxBuilder {
+    pub fn new() -> TextBoxBuilder {
         Self {
             desired_text_height: u32::MAX,
             desired_width: None,
@@ -498,7 +498,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     }
 
     crate::builder_fields! {
-        Font<'glyphs>, font;
+        Font<'static>, font;
         u32, desired_text_height desired_width top_margin bottom_margin left_margin right_margin;
         Color, fg bg hover_fg hover_bg;
         Align, v_align h_align;
@@ -517,7 +517,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
         self
     }
 
-    pub fn build(&self, name: &str) -> TextBox<'glyphs> {
+    pub fn build(&self, name: &str) -> TextBox {
         TextBox {
             font: self
                 .font
@@ -549,7 +549,7 @@ impl<'glyphs> TextBoxBuilder<'glyphs> {
     }
 }
 
-impl<'glyphs> Default for TextBoxBuilder<'glyphs> {
+impl Default for TextBoxBuilder {
     fn default() -> Self {
         Self::new()
     }

@@ -26,7 +26,7 @@ bitflags::bitflags! {
     }
 }
 
-pub struct Workspaces<'a> {
+pub struct Workspaces {
     name: Box<str>,
     desired_height: u32,
     area: Rect,
@@ -44,13 +44,13 @@ pub struct Workspaces<'a> {
     worker_send: Sender<ManagerMsg>,
     worker_recv: Receiver<WorkerMsg>,
 
-    workspace_builder: TextBoxBuilder<'a>,
-    workspaces: Vec<(WorkspaceID, TextBox<'a>)>,
+    workspace_builder: TextBoxBuilder,
+    workspaces: Vec<(WorkspaceID, TextBox)>,
     active_workspace: WorkspaceID,
 }
 
-impl Workspaces<'_> {
-    pub fn builder<'a>() -> WorkspacesBuilder<'a> {
+impl Workspaces {
+    pub fn builder() -> WorkspacesBuilder {
         Default::default()
     }
 
@@ -213,7 +213,7 @@ impl Workspaces<'_> {
     }
 }
 
-impl Drop for Workspaces<'_> {
+impl Drop for Workspaces {
     fn drop(&mut self) {
         if let Err(err) = self.worker_send.send(worker::ManagerMsg::Close) {
             log::error!(
@@ -231,7 +231,7 @@ impl Drop for Workspaces<'_> {
     }
 }
 
-impl Widget for Workspaces<'_> {
+impl Widget for Workspaces {
     fn name(&self) -> &str {
         &self.name
     }
@@ -375,8 +375,8 @@ impl Widget for Workspaces<'_> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct WorkspacesBuilder<'font> {
-    font: Option<Font<'font>>,
+pub struct WorkspacesBuilder {
+    font: Option<Font<'static>>,
     desired_height: u32,
     h_align: Align,
     v_align: Align,
@@ -388,19 +388,19 @@ pub struct WorkspacesBuilder<'font> {
     hover_bg: Color,
 }
 
-impl<'font> WorkspacesBuilder<'font> {
+impl WorkspacesBuilder {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'font>, font;
+        Font<'static>, font;
         u32, desired_height;
         Align, v_align h_align;
         Color, fg bg active_fg active_bg hover_fg hover_bg;
     }
 
-    pub fn build(&self, name: &str) -> Result<Workspaces<'font>> {
+    pub fn build(&self, name: &str) -> Result<Workspaces> {
         log::info!(
             "'{name}' :: Initializing with height: {}",
             self.desired_height

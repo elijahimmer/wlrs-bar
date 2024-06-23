@@ -5,22 +5,22 @@ use anyhow::Result;
 use chrono::Timelike;
 use rusttype::Font;
 
-pub struct Clock<'a> {
+pub struct Clock {
     name: Box<str>,
     desired_height: u32,
     area: Rect,
     h_align: Align,
     v_align: Align,
 
-    __hours: TextBox<'a>,
-    spacer1: TextBox<'a>,
-    minutes: TextBox<'a>,
-    spacer2: TextBox<'a>,
-    seconds: TextBox<'a>,
+    __hours: TextBox,
+    spacer1: TextBox,
+    minutes: TextBox,
+    spacer2: TextBox,
+    seconds: TextBox,
 }
 
-impl Clock<'_> {
-    pub fn builder<'a>() -> ClockBuilder<'a> {
+impl Clock {
+    pub fn builder() -> ClockBuilder {
         Default::default()
     }
     fn update_time(&mut self) {
@@ -63,7 +63,7 @@ macro_rules! inner_as_slice {
     };
 }
 
-impl Widget for Clock<'_> {
+impl Widget for Clock {
     fn name(&self) -> &str {
         &self.name
     }
@@ -138,8 +138,8 @@ fn format2digits(n: u8) -> Box<str> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct ClockBuilder<'font> {
-    font: Option<Font<'font>>,
+pub struct ClockBuilder {
+    font: Option<Font<'static>>,
     desired_height: Option<u32>,
     h_align: Align,
     v_align: Align,
@@ -148,19 +148,19 @@ pub struct ClockBuilder<'font> {
     bg: Color,
 }
 
-impl<'font> ClockBuilder<'font> {
+impl ClockBuilder {
     pub fn new() -> Self {
         Default::default()
     }
 
     crate::builder_fields! {
-        Font<'font>, font;
+        Font<'static>, font;
         u32, desired_height;
         Align, v_align h_align;
         Color, number_fg spacer_fg bg;
     }
 
-    pub fn build(&self, name: &str) -> Clock<'font> {
+    pub fn build(&self, name: &str) -> Clock {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
         log::info!("'{name}' :: Initializing with height: {desired_height}");
         let font = self
