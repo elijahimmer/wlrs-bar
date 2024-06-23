@@ -10,7 +10,6 @@ pub struct UpdatedLast {
     name: Box<str>,
     time: DateTime<Utc>,
     text: TextBox,
-    last_text_set: Box<str>,
 }
 
 impl UpdatedLast {
@@ -42,23 +41,12 @@ impl Widget for UpdatedLast {
         self.text.resize(area);
     }
     fn should_redraw(&mut self) -> bool {
-        let now = Utc::now();
-
-        let new_text = &label_from_time(now - self.time);
-
-        *new_text != *self.last_text_set
+        self.text.set_text(&label_from_time(Utc::now() - self.time));
+        self.text.should_redraw()
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        let now = Utc::now();
-        let new_text = &label_from_time(now - self.time);
-
-        self.last_text_set = new_text.clone().into();
-        self.text.set_text(new_text);
-
-        self.text.draw(ctx)?;
-
-        Ok(())
+        self.text.draw(ctx)
     }
 
     fn click(&mut self, _button: ClickType, _point: Point) -> Result<()> {
@@ -73,6 +61,7 @@ impl Widget for UpdatedLast {
     }
 }
 
+use core::cmp::Ordering;
 const MAX_LABEL_LEN: u32 = "59 Minutes Ago".len() as u32;
 fn label_from_time(delta_time: TimeDelta) -> String {
     if delta_time.num_seconds() < 0 {
@@ -84,23 +73,23 @@ fn label_from_time(delta_time: TimeDelta) -> String {
         return "UPDATE NOW!".into();
     }
     match days.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Day Ago".into(),
-        core::cmp::Ordering::Greater => return format!("{days} Days Ago"),
-        core::cmp::Ordering::Less => {}
+        Ordering::Equal => return "1 Day Ago".into(),
+        Ordering::Greater => return format!("{days} Days Ago"),
+        Ordering::Less => {}
     }
 
     let hours = delta_time.num_hours();
     match hours.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Hour Ago".into(),
-        core::cmp::Ordering::Greater => return format!("{hours} Hours Ago"),
-        core::cmp::Ordering::Less => {}
+        Ordering::Equal => return "1 Hour Ago".into(),
+        Ordering::Greater => return format!("{hours} Hours Ago"),
+        Ordering::Less => {}
     }
 
     let minutes = delta_time.num_minutes();
     match minutes.cmp(&1) {
-        core::cmp::Ordering::Equal => return "1 Minute Ago".into(),
-        core::cmp::Ordering::Greater => return format!("{minutes} Minutes Ago"),
-        core::cmp::Ordering::Less => {}
+        Ordering::Equal => return "1 Minute Ago".into(),
+        Ordering::Greater => return format!("{minutes} Minutes Ago"),
+        Ordering::Less => {}
     }
 
     "Now".into()
@@ -172,7 +161,6 @@ impl UpdatedLastBuilder<HasFont> {
             name: name.into(),
             time,
             text,
-            last_text_set: "Default Text".into(),
         }
     }
 }

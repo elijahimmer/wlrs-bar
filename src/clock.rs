@@ -55,11 +55,11 @@ macro_rules! inner_as_slice {
     };
     ($s:ident mut) => {
         [
-            &mut $s.minutes,
-            &mut $s.spacer1,
-            &mut $s.spacer2,
-            &mut $s.seconds,
-            &mut $s.__hours,
+            &mut $s.minutes as &mut dyn Widget,
+            &mut $s.spacer1 as &mut dyn Widget,
+            &mut $s.spacer2 as &mut dyn Widget,
+            &mut $s.seconds as &mut dyn Widget,
+            &mut $s.__hours as &mut dyn Widget,
         ]
     };
 }

@@ -165,52 +165,14 @@ impl Workspaces {
 
     fn replace_widgets(&mut self) {
         self.redraw -= RedrawState::Replace;
-        let Point { y: height, .. } = self.area.size();
 
-        let mut wk_area = self.area;
-        wk_area.max.x = wk_area.min.x + height;
-        for (idx, (_id, ref mut w)) in self.workspaces.iter_mut().enumerate() {
-            #[cfg(feature = "workspaces-logs")]
-            log::trace!(
-                "'{}' | resize :: wk_area: {wk_area}, size: {}",
-                self.name,
-                wk_area.size()
-            );
+        let mut workspaces = self
+            .workspaces
+            .iter_mut()
+            .map(|w| &mut w.1 as &mut dyn Widget)
+            .collect::<Vec<_>>();
 
-            assert!(self.area.contains_rect(wk_area));
-            assert!(
-                wk_area.size()
-                    == Point {
-                        x: height,
-                        y: height
-                    }
-            );
-
-            let old_area = w.area();
-            w.resize(wk_area);
-
-            if let Some((_hover_idx, hover_point)) =
-                self.last_hover.filter(|(_hover_idx, hover_point)| {
-                    old_area.contains(*hover_point) && !wk_area.contains(*hover_point)
-                })
-            {
-                w.motion_leave(hover_point).unwrap();
-            } else if let Some((_hover_idx, hover_point)) = self
-                .last_hover
-                .filter(|(_hover_idx, hover_point)| wk_area.contains(*hover_point))
-            {
-                #[cfg(feature = "workspaces-logs")]
-                log::trace!(
-                    "'{}' | resize :: widget '{}' is new hover target",
-                    self.name,
-                    w.name()
-                );
-                w.motion(hover_point).unwrap();
-                self.last_hover = Some((idx, hover_point));
-            }
-
-            wk_area = wk_area.x_shift(height.try_into().unwrap());
-        }
+        crate::widget::stack_widgets_right(&mut workspaces, self.area);
     }
 }
 
@@ -253,7 +215,7 @@ impl Widget for Workspaces {
             .iter()
             .map(|(_idx, w)| w.desired_width(height))
             .sum::<u32>()
-            .max(height * 12) // 12 workspaces worth- that should be enough
+            .max(height * 10) // 10 workspaces worth- that should be enough
     }
     fn resize(&mut self, area: Rect) {
         self.area = area;
@@ -440,7 +402,8 @@ impl WorkspacesBuilder<HasFont> {
             .hover_bg(self.hover_bg)
             .h_align(Align::Center)
             .v_align(Align::Center)
-            .desired_text_height(self.desired_height * 20 / 23);
+            .desired_text_height(self.desired_height * 20 / 23)
+            .desired_width(self.desired_height);
 
         let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
         let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();

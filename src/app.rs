@@ -126,39 +126,49 @@ impl App {
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
 
-        #[cfg(feature = "updated-last")]
-        if let Some(time_stamp) = args.updated_last {
-            widgets.push(Box::new(
-                crate::updated_last::UpdatedLast::builder()
-                    .font(font.clone())
-                    .time_stamp(time_stamp)
-                    .h_align(Align::End)
-                    .fg(color::ROSE)
-                    .bg(color::SURFACE)
-                    .desired_height(args.height)
-                    .build("Updated Last"),
-            ))
-        } else {
-            log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
-        }
-
-        #[cfg(feature = "battery")]
-        match crate::battery::Battery::builder()
-            .font(font)
-            .battery_path(args.battery_path)
-            .bg(color::SURFACE)
-            .full_color(color::FOAM)
-            .normal_color(color::PINE)
-            .charging_color(color::GOLD)
-            .warn_color(color::LOVE)
-            .critical_color(color::LOVE)
-            .desired_height(args.height)
-            .desired_width(args.height)
-            .h_align(Align::End)
-            .build("Battery")
+        #[cfg(any(feature = "battery", feature = "updated-last"))]
         {
-            Ok(w) => widgets.push(Box::new(w)),
-            Err(err) => log::warn!("new :: Battery widget disabled. error={err}"),
+            let mut right_container =
+                crate::widget::container::Container::builder().h_align(Align::End);
+
+            #[cfg(feature = "battery")]
+            match crate::battery::Battery::builder()
+                .font(font.clone())
+                .battery_path(args.battery_path)
+                .bg(color::SURFACE)
+                .full_color(color::FOAM)
+                .normal_color(color::PINE)
+                .charging_color(color::GOLD)
+                .warn_color(color::LOVE)
+                .critical_color(color::LOVE)
+                .desired_height(args.height)
+                .desired_width(args.height)
+                .h_align(Align::End)
+                .build("Battery")
+            {
+                Ok(w) => {
+                    right_container.add(Box::new(w));
+                }
+                Err(err) => log::warn!("new :: Battery widget disabled. error={err}"),
+            }
+
+            #[cfg(feature = "updated-last")]
+            if let Some(time_stamp) = args.updated_last {
+                right_container.add(Box::new(
+                    crate::updated_last::UpdatedLast::builder()
+                        .font(font.clone())
+                        .time_stamp(time_stamp)
+                        .h_align(Align::End)
+                        .fg(color::ROSE)
+                        .bg(color::SURFACE)
+                        .desired_height(args.height)
+                        .build("Updated Last"),
+                ));
+            } else {
+                log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
+            }
+
+            widgets.push(Box::new(right_container.build("Right Container")));
         }
 
         let mut me = Self {
