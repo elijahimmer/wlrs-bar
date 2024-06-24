@@ -13,6 +13,8 @@ bitflags::bitflags! {
         const ShouldBeShown = 1;
         const CurrentlyShown = 1 << 1;
         const ProgressiveRedraw = 1 << 2;
+
+        const IsShown = Self::ShouldBeShown.bits() | Self::CurrentlyShown.bits();
     }
 }
 
@@ -85,8 +87,7 @@ impl Widget for Cpu {
                 self.name,
                 cpu_used
             );
-            self.redraw -= RedrawState::ShouldBeShown;
-            self.redraw -= RedrawState::ProgressiveRedraw;
+            self.redraw -= !RedrawState::CurrentlyShown;
             self.redraw.contains(RedrawState::CurrentlyShown)
         } else {
             #[cfg(feature = "cpu-logs")]
@@ -121,8 +122,7 @@ impl Widget for Cpu {
                 || self.redraw.contains(RedrawState::ProgressiveRedraw)
                 || !self.redraw.contains(RedrawState::CurrentlyShown)
             {
-                self.redraw -= RedrawState::ProgressiveRedraw;
-                self.redraw |= RedrawState::CurrentlyShown;
+                self.redraw = RedrawState::IsShown;
                 #[cfg(feature = "cpu-logs")]
                 log::trace!("'{}' | draw :: showing widgets", self.name,);
                 self.progress.draw(ctx)?;
@@ -131,7 +131,7 @@ impl Widget for Cpu {
         } else if self.redraw.contains(RedrawState::CurrentlyShown) {
             #[cfg(feature = "cpu-logs")]
             log::trace!("'{}' | draw :: not showing", self.name);
-            self.redraw -= RedrawState::CurrentlyShown;
+            self.redraw = RedrawState::empty();
             self.area.draw(self.bg, ctx);
         }
 
