@@ -6,6 +6,7 @@ use super::*;
 pub struct Container {
     name: Box<str>,
     widgets: Vec<Box<dyn Widget>>,
+    should_redraw: Vec<bool>,
     v_align: Align,
     h_align: Align,
     inner_h_align: Align,
@@ -66,12 +67,19 @@ impl Widget for Container {
     }
 
     fn should_redraw(&mut self) -> bool {
-        self.widgets.iter_mut().any(|w| w.should_redraw())
+        self.should_redraw = self
+            .widgets
+            .iter_mut()
+            .map(|w| w.should_redraw())
+            .collect::<Vec<_>>(); // make sure they are all asked to resize
+
+        self.should_redraw.iter().any(|b| *b)
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        for w in self.widgets.iter_mut() {
-            if w.should_redraw() {
+        for (w, should) in self.widgets.iter_mut().zip(self.should_redraw.drain(..)) {
+            if should {
+                //log::info!("'{}' | draw :: drawing: {}", self.name, w.name());
                 w.draw(ctx)?;
             }
         }
@@ -149,6 +157,7 @@ impl ContainerBuilder {
     pub fn build(self, name: &str) -> Container {
         Container {
             name: name.into(),
+            should_redraw: Vec::with_capacity(self.widgets.len()),
             widgets: self.widgets,
             v_align: self.v_align,
             h_align: self.h_align,

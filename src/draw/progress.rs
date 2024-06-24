@@ -56,7 +56,7 @@ impl Progress {
     }
 
     pub fn set_progress(&mut self, progress: f32) {
-        assert!(progress > self.min_filled);
+        assert!(progress >= self.min_filled);
         let progress = progress - self.min_filled;
         assert!(progress <= self.diff_filled);
         let ratio_unfilled = 1.0 - (progress / self.diff_filled);

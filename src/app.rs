@@ -126,11 +126,27 @@ impl App {
             Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
         };
 
-        #[cfg(any(feature = "battery", feature = "updated-last"))]
+        #[cfg(any(feature = "battery", feature = "updated-last", feature = "cpu"))]
         {
             let mut right_container = crate::widget::container::Container::builder()
                 .h_align(Align::End)
                 .inner_h_align(Align::End);
+
+            #[cfg(feature = "updated-last")]
+            if let Some(time_stamp) = args.updated_last {
+                right_container.add(Box::new(
+                    crate::updated_last::UpdatedLast::builder()
+                        .font(font.clone())
+                        .time_stamp(time_stamp)
+                        .h_align(Align::End)
+                        .fg(color::ROSE)
+                        .bg(color::SURFACE)
+                        .desired_height(args.height)
+                        .build("Updated Last"),
+                ));
+            } else {
+                log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
+            }
 
             #[cfg(feature = "battery")]
             match crate::battery::Battery::builder()
@@ -153,20 +169,20 @@ impl App {
                 Err(err) => log::warn!("new :: Battery widget disabled. error={err}"),
             }
 
-            #[cfg(feature = "updated-last")]
-            if let Some(time_stamp) = args.updated_last {
-                right_container.add(Box::new(
-                    crate::updated_last::UpdatedLast::builder()
-                        .font(font.clone())
-                        .time_stamp(time_stamp)
-                        .h_align(Align::End)
-                        .fg(color::ROSE)
-                        .bg(color::SURFACE)
-                        .desired_height(args.height)
-                        .build("Updated Last"),
-                ));
-            } else {
-                log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
+            #[cfg(feature = "cpu")]
+            match crate::cpu::Cpu::builder()
+                .font(font.clone())
+                .fg(color::LOVE)
+                .bg(color::SURFACE)
+                .bar_filled(color::PINE)
+                .show_threshold(75.0)
+                .desired_height(args.height)
+                .build("CPU")
+            {
+                Ok(w) => {
+                    right_container.add(Box::new(w));
+                }
+                Err(err) => log::warn!("new :: CPU widget disabled. error={err}"),
             }
 
             widgets.push(Box::new(right_container.build("Right Container")));

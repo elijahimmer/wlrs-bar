@@ -39,6 +39,7 @@ pub fn stack_widgets_right(
                 y: area.max.y,
             },
         );
+        log::trace!("stack_widgets_right :: new_area: {new_area}, max_area: {area}");
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(i32::try_from(w).unwrap());
         new_area

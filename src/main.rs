@@ -8,6 +8,8 @@ pub mod app;
 pub mod battery;
 #[cfg(feature = "clock")]
 pub mod clock;
+#[cfg(feature = "cpu")]
+pub mod cpu;
 #[cfg(feature = "updated-last")]
 pub mod updated_last;
 #[cfg(feature = "workspaces")]

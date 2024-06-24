@@ -15,19 +15,25 @@ num-traits = "0.2.19"
 pretty_env_logger = "0.5.0"
 rusttype = "0.9.3"
 smithay-client-toolkit = "0.18.1"
+sysinfo = { version = "0.30.12", default-features = false }
 wayland-client = { version = "0.31.2", features = ["log"] }
 
 [features]
 default = ["widgets"]
 
-widgets = ["clock", "workspaces", "updated-last", "battery"]
+widgets = ["clock", "workspaces", "updated-last", "battery", "cpu"]
 clock = []
 workspaces = []
 updated-last = []
 battery = []
+cpu = []
+ram = []
 
 # DEBUG FEATURES:
 debug = ["outlines"]
+
+# enable ALL the logs
+the-flood-gate = ["textbox-logs", "icon-logs", "progress-logs", "clock-logs", "updated-last-logs", "battery-logs", "cpu-logs", "ram-logs"]
 
 damage = []
 # show outlines of every top level widget
@@ -65,3 +71,9 @@ updated-last-logs = []
 
 battery-all = ["battery", "battery-logs"]
 battery-logs = []
+
+cpu-all = ["cpu", "cpu-logs"]
+cpu-logs = []
+
+ram-all = ["ram", "ram-logs"]
+ram-logs = []
