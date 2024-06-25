@@ -81,29 +81,23 @@ impl Widget for Ram {
         let ram_percent = (ram_used as f32 / ram_total as f32).clamp(0.0, 1.0);
 
         if ram_percent < self.show_threshold {
-            if self.lc.should_log {
-                debug!(
-                    "{} | should_redraw :: shouldn't be shown {}",
-                    self.lc, ram_percent
-                );
-            }
+            debug!(
+                self.lc,
+                "| should_redraw :: shouldn't be shown {}", ram_percent
+            );
             self.redraw -= !RedrawState::CurrentlyShown;
             self.redraw.contains(RedrawState::CurrentlyShown)
         } else {
-            if self.lc.should_log {
-                debug!(
-                    "{} | should_redraw :: should be shown {}",
-                    self.lc, ram_percent
-                );
-            }
+            debug!(
+                self.lc,
+                "| should_redraw :: should be shown {}", ram_percent
+            );
             self.redraw |= RedrawState::ShouldBeShown;
 
             self.progress.set_progress(ram_percent);
             // self.text.should_redraw(); // We don't need this right now
             if self.progress.should_redraw() {
-                if self.lc.should_log {
-                    info!("should update");
-                }
+                trace!(self.lc, "| should_redraw :: should update");
                 self.redraw |= RedrawState::ProgressiveRedraw;
             }
             self.redraw.contains(RedrawState::ProgressiveRedraw)
@@ -113,9 +107,7 @@ impl Widget for Ram {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if ctx.full_redraw {
-            if self.lc.should_log {
-                trace!("{} | draw :: full redraw", self.lc);
-            }
+            trace!(self.lc, "| draw :: full redraw");
 
             self.area.draw(self.bg, ctx);
         }
@@ -125,16 +117,12 @@ impl Widget for Ram {
                 || self.redraw.contains(RedrawState::ProgressiveRedraw)
                 || !self.redraw.contains(RedrawState::CurrentlyShown))
         {
-            if self.lc.should_log {
-                trace!("{} | draw :: showing widgets", self.lc);
-            }
+            trace!(self.lc, "| draw :: showing widgets");
             self.redraw = RedrawState::ShownAsItShouldBe;
             self.progress.draw(ctx)?;
             self.text.draw(ctx)?;
         } else if self.redraw.contains(RedrawState::CurrentlyShown) {
-            if self.lc.should_log {
-                trace!("{} | draw :: not showing", self.lc);
-            }
+            trace!(self.lc, "| draw :: not showing");
             self.redraw = RedrawState::empty();
             self.area.draw(self.bg, ctx);
         }
@@ -206,7 +194,7 @@ impl RamBuilder<HasFont> {
             bail!("System not supported.");
         }
         let height = self.desired_height.unwrap_or(u32::MAX);
-        info!("{lc} :: Initializing with height: {height}");
+        info!(lc, ":: Initializing with height: {height}");
         let font = self.font.clone().unwrap();
 
         let text = TextBox::builder()

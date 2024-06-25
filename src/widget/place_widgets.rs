@@ -1,5 +1,5 @@
 use super::*;
-use crate::log::LC;
+use crate::log::*;
 
 pub fn stack_widgets_right(
     lc: &LC,
@@ -41,9 +41,10 @@ pub fn stack_widgets_right(
                 y: area.max.y,
             },
         );
-        if lc.should_log {
-            log::trace!("{lc} | stack_widgets_right :: new_area: {new_area}, max_area: {area}");
-        }
+        trace!(
+            lc,
+            "| stack_widgets_right :: new_area: {new_area}, max_area: {area}"
+        );
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(i32::try_from(w).unwrap());
         new_area
@@ -98,9 +99,10 @@ pub fn stack_widgets_left(
                 y: area.min.y,
             },
         );
-        if lc.should_log {
-            log::trace!("{lc} | stack_widgets_left :: new_area: {new_area}, max_area: {area}");
-        }
+        trace!(
+            lc,
+            "| stack_widgets_left :: new_area: {new_area}, max_area: {area}"
+        );
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(-(i32::try_from(w).unwrap()));
         new_area
@@ -121,7 +123,7 @@ pub fn center_widgets(
     area: Rect,
 ) {
     let (width_max, height_max) = (area.width(), area.height());
-    log::trace!("{lc} | center_widgets :: {area}");
+    trace!(lc, "| center_widgets :: {area}");
     let mut widths: Vec<_> = widgets
         .iter()
         .map(|w| w.desired_width(height_max))
@@ -154,7 +156,7 @@ pub fn center_widgets(
             },
         area.max,
     );
-    log::trace!("{lc} | center_widgets :: left: {left}, right: {right}");
+    trace!(lc, "| center_widgets :: left: {left}, right: {right}");
 
     if widths.len() % 2 == 1 {
         // is odd
@@ -167,7 +169,7 @@ pub fn center_widgets(
             Align::Center,
             Align::Center,
         );
-        log::trace!("{lc} | center_widgets :: rect: {rect}, width: {width}");
+        trace!(lc, "| center_widgets :: rect: {rect}, width: {width}");
 
         widget.resize(rect);
 
@@ -176,7 +178,7 @@ pub fn center_widgets(
         assert!(left.min.x <= left.max.x);
         assert!(right.min.x <= right.max.x);
     };
-    log::trace!("center_widgets :: left: {left}, right: {right}");
+    trace!(lc, "| center_widgets :: left: {left}, right: {right}");
 
     iter.for_each(|(go_left, (widget, &width))| {
         let rect = if go_left {

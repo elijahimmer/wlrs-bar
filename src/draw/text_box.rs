@@ -84,9 +84,7 @@ impl TextBox {
     pub fn set_text(&mut self, new_text: &str) {
         let new_text = new_text.trim();
         if new_text.is_empty() {
-            if self.lc.should_log {
-                debug!("{} set_text :: text set is empty", self.lc);
-            }
+            debug!(self.lc, "| set_text :: text set is empty");
             self.glyphs_size = None;
             self.glyphs = None;
             return;
@@ -110,20 +108,14 @@ impl TextBox {
             None => return,
         }
         self.text = new_text.into();
-        if self.lc.should_log {
-            trace!("{} | set_text :: new_text: '{new_text}'", self.lc);
-        }
+        trace!(self.lc, "| set_text :: new_text: '{new_text}'");
 
         let area_height = self.area.height().min(self.desired_text_height);
 
-        if self.lc.should_log {
-            debug!("{} | set_text :: re-rendering glyphs", self.lc);
-        }
+        debug!(self.lc, "| set_text :: re-rendering glyphs");
         let (glyphs, glyphs_size @ Point { x: width, .. }) = self.render_glyphs(area_height);
         if width > self.area.width() {
-            if self.lc.should_log {
-                info!("{} set_text :: resorting to resize before write", self.lc);
-            }
+            info!(self.lc, "set_text :: resorting to resize before write");
             self.resize(self.area); // TODO: Make it so we don't re-render like 4 times
         } else {
             self.glyphs = Some(glyphs);
@@ -183,9 +175,7 @@ impl Widget for TextBox {
         }
 
         if self.text.is_empty() || height == 0 {
-            if self.lc.should_log {
-                debug!("{} | desired_width :: nothing to display", self.lc);
-            }
+            debug!(self.lc, "| desired_width :: nothing to display");
             return 0;
         }
 
@@ -197,31 +187,23 @@ impl Widget for TextBox {
 
     fn resize(&mut self, new_area: Rect) {
         if new_area == self.area {
-            if self.lc.should_log {
-                debug!("{} | resize :: area didn't change", self.lc);
-            }
+            debug!(self.lc, "| resize :: area didn't change");
             return;
         }
 
         self.redraw = RedrawState::Full;
-        if self.lc.should_log {
-            trace!("{} | resize :: new_area: {new_area}", self.lc);
-        }
+        trace!(self.lc, "| resize :: new_area: {new_area}");
         let old_area = self.area;
         self.area = new_area;
 
         if new_area.size() == old_area.size() {
-            if self.lc.should_log {
-                trace!(
-                    "{} | resize :: box was moved, not resized, not re-rendering text",
-                    self.lc
-                );
-            }
+            trace!(
+                self.lc,
+                "| resize :: box was moved, not resized, not re-rendering text"
+            );
             return;
         }
-        if self.lc.should_log {
-            trace!("{} | resize :: re-rendering text", self.lc);
-        }
+        trace!(self.lc, "| resize :: re-rendering text");
 
         // the maximum area the text can be (while following margins)
         let area_max = self
@@ -241,9 +223,7 @@ impl Widget for TextBox {
         let (glyphs, glyphs_size @ Point { x: width_used, .. }) = self.render_glyphs(height_max);
 
         if width_used <= width_max {
-            if self.lc.should_log {
-                debug!("{} | resize :: using desired height: {height_max}", self.lc);
-            }
+            debug!(self.lc, "| resize :: using desired height: {height_max}");
 
             assert!(
                 glyphs_size <= area_max_size,
@@ -265,12 +245,10 @@ impl Widget for TextBox {
 
             let height_new = (height_max as f32 * ratio).round() as u32;
 
-            if self.lc.should_log {
-                debug!(
-                    "{} resize :: scale down by {ratio}, {height_max:?} -> {height_new:?}",
-                    self.lc,
-                );
-            }
+            debug!(
+                self.lc,
+                "| resize :: scale down by {ratio}, {height_max} -> {height_new}"
+            );
 
             let (glyphs_new, glyphs_size_new) = self.render_glyphs(height_new);
             assert!(glyphs_size_new <= area_max_size, "the text scaled down was still too large. max: {area_max_size}, rendered: {glyphs_size_new}");
@@ -288,25 +266,21 @@ impl Widget for TextBox {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        if self.lc.should_log {
-            trace!(
-                "{} | draw :: redraw: {:?}, full redraw: {}",
-                self.lc,
-                self.redraw,
-                ctx.full_redraw
-            );
-        }
+        trace!(
+            self.lc,
+            "| draw :: redraw: {:?}, full redraw: {}",
+            self.redraw,
+            ctx.full_redraw
+        );
 
         let area = self.area;
 
         let area_used = area.place_at(self.glyphs_size.unwrap(), self.h_align, self.v_align);
         let area_used_size = area_used.size();
-        if self.lc.should_log {
-            trace!(
-                "{} | draw :: area_used: {area_used} size: {area_used_size}",
-                self.lc
-            );
-        }
+        trace!(
+            self.lc,
+            "| draw :: area_used: {area_used} size: {area_used_size}"
+        );
         let glyphs_size = self.glyphs_size.unwrap();
 
         assert!(area_used_size >= glyphs_size);
@@ -315,21 +289,17 @@ impl Widget for TextBox {
 
         let glyph_skip_count = match self.redraw {
             RedrawState::Full | RedrawState::None => {
-                if self.lc.should_log {
-                    debug!("{} | draw :: redrawing fully, at {}", self.lc, self.area);
-                }
+                debug!(self.lc, "| draw :: redrawing fully, at {}", self.area);
                 self.area.draw_composite(self.bg_drawn, ctx);
                 ctx.damage.push(area);
                 0
             }
             RedrawState::Partial(idx) => {
-                if self.lc.should_log {
-                    debug!(
-                        "{} | draw :: Partial Redraw from idx: {}",
-                        self.lc,
-                        usize::from(idx),
-                    );
-                }
+                debug!(
+                    self.lc,
+                    "| draw :: Partial Redraw from idx: {}",
+                    usize::from(idx)
+                );
                 let mut area_to_fill = area_used;
                 area_to_fill.min.x += glyphs[usize::from(idx) - 1]
                     .0
@@ -348,14 +318,10 @@ impl Widget for TextBox {
             .iter()
             .skip(glyph_skip_count)
             .for_each(|(gly, bb_unshifted)| {
-                if self.lc.should_log {
-                    trace!("{} | draw :: bb-unshifted: {bb_unshifted}", self.lc);
-                }
+                trace!(self.lc, "| draw :: bb-unshifted: {bb_unshifted}");
                 let bb_x_shifted = bb_unshifted.x_shift(area_used.min.x as i32);
                 let bb = bb_x_shifted.y_shift(area_used.min.y as i32);
-                if self.lc.should_log {
-                    trace!("{} | draw :: bb: {bb}", self.lc);
-                }
+                trace!(self.lc, "| draw :: bb: {bb}");
                 assert!(
                     bb.size() <= glyphs_size,
                     "bb is too big: bb: {bb}, maximum glyph size: {glyphs_size}"
@@ -415,9 +381,7 @@ impl Widget for TextBox {
     }
 
     fn motion(&mut self, point: Point) -> Result<()> {
-        if self.lc.should_log {
-            debug!("{} | motion :: Point: {point}", self.lc);
-        }
+        debug!(self.lc, "| motion :: Point: {point}");
         assert!(self.area.contains(point));
 
         if let Some(c) = self.hover_fg.filter(|&c| c != self.fg_drawn) {
@@ -434,9 +398,7 @@ impl Widget for TextBox {
     }
 
     fn motion_leave(&mut self, _point: Point) -> Result<()> {
-        if self.lc.should_log {
-            debug!("{} | motion_leave :: Point: {_point}", self.lc);
-        }
+        debug!(self.lc, "| motion_leave :: Point: {_point}");
 
         if self.fg != self.fg_drawn {
             self.redraw = RedrawState::Full;

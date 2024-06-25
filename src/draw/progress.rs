@@ -110,9 +110,7 @@ impl Widget for Progress {
     }
 
     fn resize(&mut self, new_area: Rect) {
-        if self.lc.should_log {
-            trace!("{} | resize :: new_area: {new_area}", self.lc);
-        }
+        trace!(self.lc, "| resize :: new_area: {new_area}");
         self.area = new_area;
         self.redraw = RedrawState::Redraw;
         let max_area = new_area
@@ -130,9 +128,7 @@ impl Widget for Progress {
             self.v_align,
         );
 
-        if self.lc.should_log {
-            trace!("{} | resize :: area_used: {}", self.lc, self.area_used);
-        }
+        trace!(self.lc, "| resize :: area_used: {}", self.area_used);
     }
 
     fn should_redraw(&mut self) -> bool {

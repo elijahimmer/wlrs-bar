@@ -144,7 +144,6 @@ impl Widget for Battery {
     }
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
-        log::info!("drwaing");
         //if self.progress.should_redraw() {
         self.area.draw(self.bg_color, ctx);
         self.battery.draw(ctx)?;
@@ -237,7 +236,7 @@ impl BatteryBuilder<HasFont> {
         _ = std::fs::read_dir(&battery_path)?;
 
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
-        log::info!("{lc} :: Initializing with height: {desired_height}");
+        info!(lc, ":: Initializing with height: {desired_height}");
         let font = self.font.clone().unwrap();
 
         let battery = Icon::builder()

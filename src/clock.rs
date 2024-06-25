@@ -1,4 +1,4 @@
-use super::log::LC;
+use super::log::*;
 use crate::draw::prelude::*;
 use crate::widget::{center_widgets, ClickType, Widget};
 
@@ -181,7 +181,7 @@ impl<T> ClockBuilder<T> {
 impl ClockBuilder<HasFont> {
     pub fn build(&self, lc: LC) -> Clock {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
-        log::info!("{lc} :: Initializing with height: {desired_height}");
+        info!(lc, ":: Initializing with height: {desired_height}");
         let font = self.font.clone().unwrap();
 
         let time_builder = TextBox::builder()

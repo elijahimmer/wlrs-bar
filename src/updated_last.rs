@@ -139,7 +139,8 @@ impl<T> UpdatedLastBuilder<T> {
 impl UpdatedLastBuilder<HasFont> {
     pub fn build(&self, lc: LC) -> UpdatedLast {
         info!(
-            "{lc} :: Initializing with height: {}",
+            lc,
+            ":: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
         let font = self.font.clone().unwrap();

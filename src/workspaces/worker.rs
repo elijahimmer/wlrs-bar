@@ -35,7 +35,10 @@ pub enum ManagerMsg {
 pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Result<()> {
     let mut socket = open_hypr_socket(HyprSocket::Event)?;
     if let Err(err) = socket.set_nonblocking(true) {
-        warn!("{lc} | work :: couldn't set socket to non-blocking. error={err}");
+        warn!(
+            lc,
+            "| work :: couldn't set socket to non-blocking. error={err}"
+        );
     }
 
     send.send(WorkerMsg::WorkspaceReset)?;
@@ -51,12 +54,12 @@ pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Resu
         match recv.try_recv() {
             Ok(msg) => match msg {
                 ManagerMsg::Close => {
-                    info!("{lc} work :: told to close");
+                    info!(lc, "work :: told to close");
                     break;
                 }
             },
             Err(TryRecvError::Disconnected) => {
-                warn!("{lc} work :: manager's send channel disconnected");
+                warn!(lc, "| work :: manager's send channel disconnected");
                 break;
             }
             Err(TryRecvError::Empty) => {}
@@ -77,7 +80,7 @@ pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Resu
             .filter_map(|line| line.find(">>").map(|idx| (&line[..idx], &line[idx + 2..])))
             .filter_map(|(cmd, msg)| {
                 WorkerMsg::parse(cmd, msg)
-                    .map_err(|err| warn!("{lc} | work :: Failed to parse WorkerMsg. error='{err}'"))
+                    .map_err(|err| warn!(lc, "| work :: Failed to parse WorkerMsg. error='{err}'"))
                     .ok()?
             })
             .try_for_each(|msg| send.send(msg))?;

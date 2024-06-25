@@ -1,6 +1,6 @@
 use super::place_widgets::*;
 use super::*;
-use crate::log::LC;
+use crate::log::*;
 
 //use crate::draw::prelude::*;
 
@@ -80,9 +80,7 @@ impl Widget for Container {
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         for (w, should) in self.widgets.iter_mut().zip(self.should_redraw.drain(..)) {
             if should {
-                if w.lc().should_log {
-                    info!("{} | draw :: drawing: {}", self.lc, w.lc().name);
-                }
+                info!(self.lc.combine(w.lc()), "| draw :: drawing");
                 w.draw(ctx)?;
             }
         }

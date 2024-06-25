@@ -88,13 +88,11 @@ impl Icon {
         let max_height_scale = ((max_height as f32).powi(2) / (bb_height + 1) as f32).floor();
 
         let new_scale = Scale::uniform(max_width_scale.min(max_height_scale));
-        if self.lc.should_log {
-            trace!(
-            "{} | render_icon :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
+        trace!(
             self.lc,
+            "| render_icon :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
             new_scale.x
         );
-        }
 
         let new_glyph = glyph.scaled(new_scale).positioned(offset);
         let new_size: Point = {
@@ -106,22 +104,18 @@ impl Icon {
             new.max.into()
         };
 
-        if self.lc.should_log {
-            trace!(
-                "{} | render_icon :: max width: {max_width}, glyph width: {}, old_size: {}",
-                self.lc,
-                new_size.x,
-                bb_width,
-            );
-        }
-        if self.lc.should_log {
-            trace!(
-                "{} | render_icon :: max height: {max_height}, glyph height: {}, old_size: {}",
-                self.lc,
-                new_size.y,
-                bb_height,
-            );
-        }
+        trace!(
+            self.lc,
+            "| render_icon :: max width: {max_width}, glyph width: {}, old_size: {}",
+            new_size.x,
+            bb_width
+        );
+        trace!(
+            self.lc,
+            "| render_icon :: max height: {max_height}, glyph height: {}, old_size: {}",
+            new_size.y,
+            bb_height
+        );
 
         assert!(
             new_size <= max_size,
@@ -228,23 +222,19 @@ impl Widget for Icon {
 
         let (gly, size) = self.glyph.as_ref().unwrap();
 
-        if self.lc.should_log {
-            trace!(
-                "{} | draw :: area: {}, size: {}",
-                self.lc,
-                self.area.size(),
-                *size
-            );
-        }
+        trace!(
+            self.lc,
+            "| draw :: area: {}, size: {}",
+            self.area.size(),
+            *size
+        );
 
         self.area.draw_composite(self.bg, ctx);
         ctx.damage.push(self.area);
 
         let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
 
-        if self.lc.should_log {
-            trace!("{} | draw :: bb: {bb}, area: {}", self.lc, self.area);
-        }
+        trace!(self.lc, "| draw :: bb: {bb}, area: {}", self.area);
 
         gly.draw(|x, y, v| {
             let point = bb.min + Point { x, y };

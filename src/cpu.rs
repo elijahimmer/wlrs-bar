@@ -82,29 +82,20 @@ impl Widget for Cpu {
             .clamp(0.0, 100.0);
 
         if cpu_used < self.show_threshold {
-            if self.lc.should_log {
-                debug!(
-                    "{} | should_redraw :: shouldn't be shown {}",
-                    self.lc, cpu_used
-                );
-            }
+            debug!(
+                self.lc,
+                "| should_redraw :: shouldn't be shown {}", cpu_used
+            );
             self.redraw -= !RedrawState::CurrentlyShown;
             self.redraw.contains(RedrawState::CurrentlyShown)
         } else {
-            if self.lc.should_log {
-                debug!(
-                    "{} | should_redraw :: should be shown {}",
-                    self.lc, cpu_used
-                );
-            }
+            debug!(self.lc, "| should_redraw :: should be shown {}", cpu_used);
             self.redraw |= RedrawState::ShouldBeShown;
 
             self.progress.set_progress(cpu_used);
             // self.text.should_redraw(); // We don't need this right now
             if self.progress.should_redraw() {
-                if self.lc.should_log {
-                    info!("should update");
-                }
+                info!(self.lc, "| should update");
                 self.redraw |= RedrawState::ProgressiveRedraw;
             }
             self.redraw.contains(RedrawState::ProgressiveRedraw)
@@ -114,9 +105,7 @@ impl Widget for Cpu {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if ctx.full_redraw {
-            if self.lc.should_log {
-                trace!("{} | draw :: full redraw", self.lc);
-            }
+            trace!(self.lc, "| draw :: full redraw");
 
             self.area.draw(self.bg, ctx);
         }
@@ -126,16 +115,12 @@ impl Widget for Cpu {
                 || self.redraw.contains(RedrawState::ProgressiveRedraw)
                 || !self.redraw.contains(RedrawState::CurrentlyShown))
         {
-            if self.lc.should_log {
-                trace!("{} | draw :: showing widgets", self.lc);
-            }
+            trace!(self.lc, "| draw :: showing widgets");
             self.redraw = RedrawState::ShownAsItShouldBe;
             self.progress.draw(ctx)?;
             self.text.draw(ctx)?;
         } else if self.redraw.contains(RedrawState::CurrentlyShown) {
-            if self.lc.should_log {
-                trace!("{} | draw :: not showing", self.lc);
-            }
+            trace!(self.lc, "| draw :: not showing");
             self.redraw = RedrawState::empty();
             self.area.draw(self.bg, ctx);
         }
@@ -207,7 +192,7 @@ impl CpuBuilder<HasFont> {
             bail!("System not supported.");
         }
         let height = self.desired_height.unwrap_or(u32::MAX);
-        info!("{lc} :: Initializing with height: {height}");
+        info!(lc, "Initializing with height: {height}");
         let font = self.font.clone().unwrap();
 
         let text = TextBox::builder()
