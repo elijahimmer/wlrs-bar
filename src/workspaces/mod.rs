@@ -61,9 +61,9 @@ impl Workspaces {
             || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
         {
             match self.worker_handle.take().map(|w| w.join()).transpose() {
-                Ok(_) => warn!("'{}', workspaces worker returned too soon", self.lc),
+                Ok(_) => warn!("{}, workspaces worker returned too soon", self.lc),
                 Err(err) => error!(
-                    "'{}', workspaces worker thread panicked. error={err:?}",
+                    "{}, workspaces worker thread panicked. error={err:?}",
                     self.lc
                 ),
             }
@@ -84,7 +84,7 @@ impl Workspaces {
 
         self.worker_recv.try_iter().for_each(|m| {
             if self.lc.should_log {
-                trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.lc);
+                trace!("{} | update_workspaces :: got msg: '{m:?}'", self.lc);
             }
             match m {
                 WorkerMsg::WorkspaceReset => {
@@ -102,7 +102,7 @@ impl Workspaces {
                         w.set_bg(self.bg);
                     } else if self.lc.should_log {
                         warn!(
-                            "'{}' | update_workspaces :: previous active workspace doesn't exist",
+                            "{} | update_workspaces :: previous active workspace doesn't exist",
                             self.lc
                         );
                     }
@@ -118,7 +118,7 @@ impl Workspaces {
                         w.set_bg(self.active_bg);
                     } else if self.lc.should_log {
                         warn!(
-                            "'{}' | update_workspaces :: new active workspace doesn't exist",
+                            "{} | update_workspaces :: new active workspace doesn't exist",
                             self.lc
                         );
                     }
@@ -140,7 +140,7 @@ impl Workspaces {
                         self.workspaces.insert(idx, (id, wk));
                     } else if self.lc.should_log {
                         warn!(
-                            "'{}' | update_workspaces :: workspace created that already exists",
+                            "{} | update_workspaces :: workspace created that already exists",
                             self.lc
                         );
                     }
@@ -181,14 +181,14 @@ impl Drop for Workspaces {
     fn drop(&mut self) {
         if let Err(err) = self.worker_send.send(worker::ManagerMsg::Close) {
             error!(
-                "'{}', failed to send the thread a message. error={err}",
+                "{}, failed to send the thread a message. error={err}",
                 self.lc
             )
         }
 
         if let Err(err) = self.worker_handle.take().map(|w| w.join()).transpose() {
             error!(
-                "'{}', workspaces worker thread panicked. error={err:?}",
+                "{}, workspaces worker thread panicked. error={err:?}",
                 self.lc
             )
         }
@@ -228,7 +228,7 @@ impl Widget for Workspaces {
     fn should_redraw(&mut self) -> bool {
         if let Err(err) = self.update_workspaces() {
             warn!(
-                "'{}' | should_redraw :: failed to update workspaces. error={err}",
+                "{} | should_redraw :: failed to update workspaces. error={err}",
                 self.lc
             );
         }
@@ -262,7 +262,7 @@ impl Widget for Workspaces {
         }
 
         if self.lc.should_log {
-            trace!("'{}' | draw :: Redraw State: {:?}", self.lc, self.redraw);
+            trace!("{} | draw :: Redraw State: {:?}", self.lc, self.redraw);
         }
 
         self.redraw = RedrawState::empty();
@@ -271,11 +271,7 @@ impl Widget for Workspaces {
             assert!(self.area.contains_rect(w.area()));
             if w.should_redraw() {
                 if let Err(err) = w.draw(ctx) {
-                    warn!(
-                        "'{}', widget '{}' failed to draw. error={err}",
-                        self.lc,
-                        w.lc()
-                    );
+                    warn!("{}, widget {} failed to draw. error={err}", self.lc, w.lc());
                 }
             }
             #[cfg(feature = "workspaces-outlines")]
@@ -290,9 +286,10 @@ impl Widget for Workspaces {
             return Ok(());
         }
 
-        if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
-            #[cfg(feature = "workspaces-logs")]
-            debug!("'{}' | click :: clicked: {}", self.name, _w.name());
+        if let Some((id, w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
+            if self.lc.should_log {
+                debug!("{} | click :: clicked: {}", self.lc, w.lc());
+            }
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
         }
 

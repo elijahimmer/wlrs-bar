@@ -84,7 +84,7 @@ impl Widget for Cpu {
         if cpu_used < self.show_threshold {
             if self.lc.should_log {
                 debug!(
-                    "'{}' | should_redraw :: shouldn't be shown '{}'",
+                    "{} | should_redraw :: shouldn't be shown {}",
                     self.lc, cpu_used
                 );
             }
@@ -93,7 +93,7 @@ impl Widget for Cpu {
         } else {
             if self.lc.should_log {
                 debug!(
-                    "'{}' | should_redraw :: should be shown '{}'",
+                    "{} | should_redraw :: should be shown {}",
                     self.lc, cpu_used
                 );
             }
@@ -115,7 +115,7 @@ impl Widget for Cpu {
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if ctx.full_redraw {
             if self.lc.should_log {
-                trace!("'{}' | draw :: full redraw", self.lc);
+                trace!("{} | draw :: full redraw", self.lc);
             }
 
             self.area.draw(self.bg, ctx);
@@ -127,14 +127,14 @@ impl Widget for Cpu {
                 || !self.redraw.contains(RedrawState::CurrentlyShown))
         {
             if self.lc.should_log {
-                trace!("'{}' | draw :: showing widgets", self.lc);
+                trace!("{} | draw :: showing widgets", self.lc);
             }
             self.redraw = RedrawState::ShownAsItShouldBe;
             self.progress.draw(ctx)?;
             self.text.draw(ctx)?;
         } else if self.redraw.contains(RedrawState::CurrentlyShown) {
             if self.lc.should_log {
-                trace!("'{}' | draw :: not showing", self.lc);
+                trace!("{} | draw :: not showing", self.lc);
             }
             self.redraw = RedrawState::empty();
             self.area.draw(self.bg, ctx);

@@ -29,7 +29,7 @@ impl Clock {
         let time = chrono::Local::now();
 
         //log::warn!(
-        //    "'{}' update_time :: {}:{}:{}",
+        //    "{} update_time :: {}:{}:{}",
         //    self.lc,
         //    time.hour(),
         //    time.minute(),
@@ -108,7 +108,7 @@ impl Widget for Clock {
             if w.should_redraw() {
                 if let Err(err) = w.draw(ctx) {
                     log::warn!(
-                        "'{}' | draw :: widget '{}' failed to draw. error={err}",
+                        "{} | draw :: widget {} failed to draw. error={err}",
                         self.lc,
                         w.lc().name
                     );

@@ -206,7 +206,7 @@ impl Widget for Icon {
         let glyph = self.render_icon(used_size);
         assert!(
             glyph.1 <= used_size,
-            "'{}' :: glyph size: {}, max size: {}, useable: {}",
+            "{} :: glyph size: {}, max size: {}, useable: {}",
             self.lc,
             glyph.1,
             used_size,
@@ -230,7 +230,7 @@ impl Widget for Icon {
 
         if self.lc.should_log {
             trace!(
-                "'{}' | draw :: area: {}, size: {}",
+                "{} | draw :: area: {}, size: {}",
                 self.lc,
                 self.area.size(),
                 *size
@@ -243,7 +243,7 @@ impl Widget for Icon {
         let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
 
         if self.lc.should_log {
-            trace!("'{}' | draw :: bb: {bb}, area: {}", self.lc, self.area);
+            trace!("{} | draw :: bb: {bb}, area: {}", self.lc, self.area);
         }
 
         gly.draw(|x, y, v| {

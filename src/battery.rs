@@ -73,10 +73,7 @@ impl Battery {
             "Charging" => BatteryStatus::Charging,
             "Warn" => BatteryStatus::Warn,
             _ => {
-                log::warn!(
-                    "'{}' | update :: unknown battery status: '{status}'",
-                    self.lc
-                );
+                log::warn!("{} | update :: unknown battery status: '{status}'", self.lc);
                 BatteryStatus::Normal
             }
         };
@@ -93,7 +90,7 @@ impl Battery {
             self.progress.set_filled_color(c);
             self.battery.set_fg(c);
             self.status = status;
-            //log::trace!("'{}' | update :: color: {c}", self.lc);
+            //log::trace!("{} | update :: color: {c}", self.lc);
         }
 
         self.progress.set_progress(charge);

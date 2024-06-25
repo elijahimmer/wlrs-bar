@@ -111,7 +111,7 @@ impl Widget for Progress {
 
     fn resize(&mut self, new_area: Rect) {
         if self.lc.should_log {
-            trace!("'{}' | resize :: new_area: {new_area}", self.lc);
+            trace!("{} | resize :: new_area: {new_area}", self.lc);
         }
         self.area = new_area;
         self.redraw = RedrawState::Redraw;
@@ -131,7 +131,7 @@ impl Widget for Progress {
         );
 
         if self.lc.should_log {
-            trace!("'{}' | resize :: area_used: {}", self.lc, self.area_used);
+            trace!("{} | resize :: area_used: {}", self.lc, self.area_used);
         }
     }
 
