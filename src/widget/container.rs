@@ -1,10 +1,11 @@
 use super::place_widgets::*;
 use super::*;
+use crate::log::LC;
 
 //use crate::draw::prelude::*;
 
 pub struct Container {
-    name: Box<str>,
+    lc: LC,
     widgets: Vec<Box<dyn Widget>>,
     should_redraw: Vec<bool>,
     v_align: Align,
@@ -25,8 +26,8 @@ impl Container {
 }
 
 impl Widget for Container {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
 
     fn h_align(&self) -> Align {
@@ -59,9 +60,9 @@ impl Widget for Container {
     fn resize(&mut self, area: Rect) {
         self.area = area;
         match self.inner_h_align {
-            Align::Center => center_widgets(&mut self.widgets, area),
-            Align::End => stack_widgets_left(&mut self.widgets, area),
-            Align::Start => stack_widgets_right(&mut self.widgets, area),
+            Align::Center => center_widgets(&self.lc, &mut self.widgets, area),
+            Align::End => stack_widgets_left(&self.lc, &mut self.widgets, area),
+            Align::Start => stack_widgets_right(&self.lc, &mut self.widgets, area),
             _ => todo!(),
         }
     }
@@ -79,7 +80,7 @@ impl Widget for Container {
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         for (w, should) in self.widgets.iter_mut().zip(self.should_redraw.drain(..)) {
             if should {
-                //log::info!("'{}' | draw :: drawing: {}", self.name, w.name());
+                //log::info!("'{}' | draw :: drawing: {}", self.lc, w.lc().name);
                 w.draw(ctx)?;
             }
         }
@@ -154,9 +155,9 @@ impl ContainerBuilder {
         self
     }
 
-    pub fn build(self, name: &str) -> Container {
+    pub fn build(self, lc: LC) -> Container {
         Container {
-            name: name.into(),
+            lc,
             should_redraw: Vec::with_capacity(self.widgets.len()),
             widgets: self.widgets,
             v_align: self.v_align,

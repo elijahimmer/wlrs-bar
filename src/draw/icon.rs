@@ -1,7 +1,8 @@
 use super::prelude::*;
+use crate::log::*;
 use crate::widget::{ClickType, PositionedWidget, Widget};
-use anyhow::Result;
 
+use anyhow::Result;
 use rusttype::{Font, PositionedGlyph, Scale};
 use std::marker::PhantomData;
 
@@ -10,7 +11,7 @@ pub struct Icon {
     font: Font<'static>,
 
     icon: char,
-    name: Box<str>,
+    lc: LC,
 
     fg: Color,
     bg: Color,
@@ -36,80 +37,6 @@ pub struct Icon {
     desired_width: Option<u32>,
 }
 
-fn render_icon<'a>(
-    name: &'a str,
-    font: &'a Font<'static>,
-    icon: char,
-    max_size: Point,
-) -> (PositionedGlyph<'static>, Point) {
-    let Point {
-        x: max_width,
-        y: max_height,
-    } = max_size;
-
-    let scale = Scale::uniform(max_height as f32);
-
-    let offset = rusttype::point(0.0, 0.0);
-
-    let glyph = font.glyph(icon);
-    let positioned_glyph = glyph.clone().scaled(scale).positioned(offset);
-    let Point {
-        x: bb_width,
-        y: bb_height,
-    } = {
-        let mut bb = positioned_glyph
-            .pixel_bounding_box()
-            .expect("Glyph should have a bounding box");
-
-        bb.max.y -= bb.min.y;
-        bb.max.x -= bb.min.x;
-
-        bb.max.into()
-    };
-
-    // the scale to reach the max width/height
-    let max_width_scale =
-        ((max_width as f32) * (max_height as f32) / (bb_width + 1) as f32).floor();
-    let max_height_scale = ((max_height as f32).powi(2) / (bb_height + 1) as f32).floor();
-
-    let new_scale = Scale::uniform(max_width_scale.min(max_height_scale));
-    #[cfg(feature = "icon-logs")]
-    log::trace!(
-        "'{name}' | render_icon :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
-        new_scale.x
-    );
-
-    let new_glyph = glyph.scaled(new_scale).positioned(offset);
-    let new_size: Point = {
-        let mut new = new_glyph.clone().pixel_bounding_box().unwrap();
-
-        new.max.y -= new.min.y;
-        new.max.x -= new.min.x;
-
-        new.max.into()
-    };
-
-    #[cfg(feature = "icon-logs")]
-    log::trace!(
-        "'{name}' | render_icon :: max width: {max_width}, glyph width: {}, old_size: {}",
-        new_size.x,
-        bb_width,
-    );
-    #[cfg(feature = "icon-logs")]
-    log::trace!(
-        "'{name}' | render_icon :: max height: {max_height}, glyph height: {}, old_size: {}",
-        new_size.y,
-        bb_height,
-    );
-
-    assert!(
-        new_size <= max_size,
-        "'{name}' | render_icon :: new size: {new_size}, max size: {max_size}"
-    );
-
-    (new_glyph, new_size)
-}
-
 impl Icon {
     pub fn builder() -> IconBuilder<NeedsFont> {
         Default::default()
@@ -128,11 +55,87 @@ impl Icon {
             self.bg = bg;
         }
     }
+
+    fn render_icon(&self, max_size: Point) -> (PositionedGlyph<'static>, Point) {
+        let Point {
+            x: max_width,
+            y: max_height,
+        } = max_size;
+
+        let scale = Scale::uniform(max_height as f32);
+
+        let offset = rusttype::point(0.0, 0.0);
+
+        let glyph = self.font.glyph(self.icon);
+        let positioned_glyph = glyph.clone().scaled(scale).positioned(offset);
+        let Point {
+            x: bb_width,
+            y: bb_height,
+        } = {
+            let mut bb = positioned_glyph
+                .pixel_bounding_box()
+                .expect("Glyph should have a bounding box");
+
+            bb.max.y -= bb.min.y;
+            bb.max.x -= bb.min.x;
+
+            bb.max.into()
+        };
+
+        // the scale to reach the max width/height
+        let max_width_scale =
+            ((max_width as f32) * (max_height as f32) / (bb_width + 1) as f32).floor();
+        let max_height_scale = ((max_height as f32).powi(2) / (bb_height + 1) as f32).floor();
+
+        let new_scale = Scale::uniform(max_width_scale.min(max_height_scale));
+        if self.lc.should_log {
+            trace!(
+            "{} | render_icon :: width scale: {max_width_scale}, height scale: {max_height_scale}, min_scale: {}",
+            self.lc,
+            new_scale.x
+        );
+        }
+
+        let new_glyph = glyph.scaled(new_scale).positioned(offset);
+        let new_size: Point = {
+            let mut new = new_glyph.clone().pixel_bounding_box().unwrap();
+
+            new.max.y -= new.min.y;
+            new.max.x -= new.min.x;
+
+            new.max.into()
+        };
+
+        if self.lc.should_log {
+            trace!(
+                "{} | render_icon :: max width: {max_width}, glyph width: {}, old_size: {}",
+                self.lc,
+                new_size.x,
+                bb_width,
+            );
+        }
+        if self.lc.should_log {
+            trace!(
+                "{} | render_icon :: max height: {max_height}, glyph height: {}, old_size: {}",
+                self.lc,
+                new_size.y,
+                bb_height,
+            );
+        }
+
+        assert!(
+            new_size <= max_size,
+            "{} | render_icon :: new size: {new_size}, max size: {max_size}",
+            self.lc
+        );
+
+        (new_glyph, new_size)
+    }
 }
 
 impl Widget for Icon {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
     fn area(&self) -> Rect {
         self.area
@@ -167,7 +170,7 @@ impl Widget for Icon {
                 x: glyph_width,
                 y: glyph_height,
             },
-        ) = render_icon(&self.name, &self.font, self.icon, size_used);
+        ) = self.render_icon(size_used);
         assert!(glyph_height <= height);
 
         glyph_width + self.h_margins()
@@ -200,11 +203,11 @@ impl Widget for Icon {
             return;
         }
 
-        let glyph = render_icon(&self.name, &self.font, self.icon, used_size);
+        let glyph = self.render_icon(used_size);
         assert!(
             glyph.1 <= used_size,
             "'{}' :: glyph size: {}, max size: {}, useable: {}",
-            self.name,
+            self.lc,
             glyph.1,
             used_size,
             self.area_used,
@@ -225,21 +228,23 @@ impl Widget for Icon {
 
         let (gly, size) = self.glyph.as_ref().unwrap();
 
-        #[cfg(feature = "icon-logs")]
-        log::trace!(
-            "'{}' | draw :: area: {}, size: {}",
-            self.name,
-            self.area.size(),
-            *size
-        );
+        if self.lc.should_log {
+            trace!(
+                "'{}' | draw :: area: {}, size: {}",
+                self.lc,
+                self.area.size(),
+                *size
+            );
+        }
 
         self.area.draw_composite(self.bg, ctx);
         ctx.damage.push(self.area);
 
         let bb = self.area_used.place_at(*size, self.h_align, self.v_align);
 
-        #[cfg(feature = "icon-logs")]
-        log::trace!("'{}' | draw :: bb: {bb}, area: {}", self.name, self.area);
+        if self.lc.should_log {
+            trace!("'{}' | draw :: bb: {bb}, area: {}", self.lc, self.area);
+        }
 
         gly.draw(|x, y, v| {
             let point = bb.min + Point { x, y };
@@ -359,14 +364,14 @@ impl<T> IconBuilder<T> {
 }
 
 impl IconBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> Icon {
+    pub fn build(&self, lc: LC) -> Icon {
         assert!((0.0..=1.0).contains(&self.top_margin));
         assert!((0.0..=1.0).contains(&self.bottom_margin));
         assert!((0.0..=1.0).contains(&self.left_margin));
         assert!((0.0..=1.0).contains(&self.right_margin));
 
         Icon {
-            name: name.into(),
+            lc,
             font: self.font.clone().unwrap(),
             icon: self.icon,
             fg: self.fg,

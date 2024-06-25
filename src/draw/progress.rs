@@ -1,7 +1,8 @@
 use super::prelude::*;
+use crate::log::*;
 use crate::widget::{ClickType, PositionedWidget, Widget};
-use anyhow::Result;
 
+use anyhow::Result;
 use std::num::NonZeroU32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash, Default)]
@@ -16,7 +17,7 @@ pub enum RedrawState {
 
 /// A single character displayed as large as possible
 pub struct Progress {
-    name: Box<str>,
+    lc: LC,
 
     filled_color: Color,
     unfilled_color: Color,
@@ -87,8 +88,8 @@ impl Progress {
 }
 
 impl Widget for Progress {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
     fn area(&self) -> Rect {
         self.area
@@ -109,8 +110,9 @@ impl Widget for Progress {
     }
 
     fn resize(&mut self, new_area: Rect) {
-        #[cfg(feature = "progress-logs")]
-        log::trace!("'{}' | resize :: new_area: {new_area}", self.name);
+        if self.lc.should_log {
+            trace!("'{}' | resize :: new_area: {new_area}", self.lc);
+        }
         self.area = new_area;
         self.redraw = RedrawState::Redraw;
         let max_area = new_area
@@ -128,8 +130,9 @@ impl Widget for Progress {
             self.v_align,
         );
 
-        #[cfg(feature = "progress-logs")]
-        log::trace!("'{}' | resize :: area_used: {}", self.name, self.area_used);
+        if self.lc.should_log {
+            trace!("'{}' | resize :: area_used: {}", self.lc, self.area_used);
+        }
     }
 
     fn should_redraw(&mut self) -> bool {
@@ -275,9 +278,9 @@ impl ProgressBuilder {
         self
     }
 
-    pub fn build(&self, name: &str) -> Progress {
+    pub fn build(&self, lc: LC) -> Progress {
         Progress {
-            name: name.into(),
+            lc,
 
             filled_color: self.filled_color,
             unfilled_color: self.unfilled_color,

@@ -1,4 +1,5 @@
 use crate::draw::prelude::*;
+use crate::log::*;
 use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
@@ -7,7 +8,7 @@ use rusttype::Font;
 use std::marker::PhantomData;
 
 pub struct UpdatedLast {
-    name: Box<str>,
+    lc: LC,
     time: DateTime<Utc>,
     text: TextBox,
 }
@@ -19,8 +20,8 @@ impl UpdatedLast {
 }
 
 impl Widget for UpdatedLast {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
     fn area(&self) -> Rect {
         self.text.area()
@@ -136,9 +137,9 @@ impl<T> UpdatedLastBuilder<T> {
 }
 
 impl UpdatedLastBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> UpdatedLast {
-        log::info!(
-            "'{name}' :: Initializing with height: {}",
+    pub fn build(&self, lc: LC) -> UpdatedLast {
+        info!(
+            "{lc} :: Initializing with height: {}",
             self.desired_height.unwrap_or(u32::MAX)
         );
         let font = self.font.clone().unwrap();
@@ -155,12 +156,8 @@ impl UpdatedLastBuilder<HasFont> {
             .bg(self.bg)
             .text("Default Text")
             .desired_text_height(self.desired_height.map(|s| s * 20 / 23).unwrap_or(u32::MAX))
-            .build(&(name.to_owned() + " Text"));
+            .build(lc.child("Text"));
 
-        UpdatedLast {
-            name: name.into(),
-            time,
-            text,
-        }
+        UpdatedLast { lc, time, text }
     }
 }

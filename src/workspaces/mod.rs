@@ -2,6 +2,7 @@ pub mod utils;
 pub mod worker;
 
 use crate::draw::prelude::*;
+use crate::log::*;
 use crate::widget::*;
 use utils::WorkspaceID;
 use worker::{work, ManagerMsg, WorkerMsg};
@@ -28,7 +29,7 @@ bitflags::bitflags! {
 }
 
 pub struct Workspaces {
-    name: Box<str>,
+    lc: LC,
     desired_height: u32,
     area: Rect,
     h_align: Align,
@@ -60,10 +61,10 @@ impl Workspaces {
             || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
         {
             match self.worker_handle.take().map(|w| w.join()).transpose() {
-                Ok(_) => log::warn!("'{}', workspaces worker returned too soon", self.name),
-                Err(err) => log::error!(
+                Ok(_) => warn!("'{}', workspaces worker returned too soon", self.lc),
+                Err(err) => error!(
                     "'{}', workspaces worker thread panicked. error={err:?}",
-                    self.name
+                    self.lc
                 ),
             }
 
@@ -72,15 +73,19 @@ impl Workspaces {
             self.worker_send = worker_send;
             self.worker_recv = worker_recv;
 
-            let wrk_name = self.name.to_owned();
-            self.worker_handle = Some(std::thread::spawn(move || {
-                work(&wrk_name, other_recv, other_send)
-            }));
+            let wkr_lc = self.lc.child("Worker Thread");
+            self.worker_handle = Some(
+                std::thread::Builder::new()
+                    .name(self.lc.name.to_string())
+                    .stack_size(32 * 1024)
+                    .spawn(move || work(wkr_lc, other_recv, other_send))?,
+            );
         }
 
         self.worker_recv.try_iter().for_each(|m| {
-            #[cfg(feature = "workspaces-logs")]
-            log::trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.name);
+            if self.lc.should_log {
+                trace!("'{}' | update_workspaces :: got msg: '{m:?}'", self.lc);
+            }
             match m {
                 WorkerMsg::WorkspaceReset => {
                     self.workspaces.clear();
@@ -95,11 +100,10 @@ impl Workspaces {
                     {
                         w.set_fg(self.fg);
                         w.set_bg(self.bg);
-                    } else {
-                        #[cfg(feature = "workspaces-logs")]
-                        log::warn!(
+                    } else if self.lc.should_log {
+                        warn!(
                             "'{}' | update_workspaces :: previous active workspace doesn't exist",
-                            self.name
+                            self.lc
                         );
                     }
 
@@ -112,11 +116,10 @@ impl Workspaces {
                     {
                         w.set_fg(self.active_fg);
                         w.set_bg(self.active_bg);
-                    } else {
-                        #[cfg(feature = "workspaces-logs")]
-                        log::warn!(
+                    } else if self.lc.should_log {
+                        warn!(
                             "'{}' | update_workspaces :: new active workspace doesn't exist",
-                            self.name
+                            self.lc
                         );
                     }
                     self.redraw |= RedrawState::Normal;
@@ -133,13 +136,12 @@ impl Workspaces {
 
                         let wk = builder
                             .text(wk_name.as_str())
-                            .build(&format!("{} {wk_name}", self.name));
+                            .build(self.lc.child(&wk_name));
                         self.workspaces.insert(idx, (id, wk));
-                    } else {
-                        #[cfg(feature = "workspaces-logs")]
-                        log::warn!(
+                    } else if self.lc.should_log {
+                        warn!(
                             "'{}' | update_workspaces :: workspace created that already exists",
-                            self.name
+                            self.lc
                         );
                     }
 
@@ -148,11 +150,10 @@ impl Workspaces {
                 WorkerMsg::WorkspaceDestroy(id) => {
                     if let Ok(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
                         self.workspaces.remove(idx);
-                    } else {
-                        #[cfg(feature = "workspaces-logs")]
-                        log::debug!(
-                            "'{}' | update_workspaces :: workspace destroyed that doesn't exists",
-                            self.name
+                    } else if self.lc.should_log {
+                        debug!(
+                            "{} | update_workspaces :: workspace destroyed that doesn't exists",
+                            self.lc
                         );
                     }
                     self.redraw |= RedrawState::ReplaceFill;
@@ -172,31 +173,31 @@ impl Workspaces {
             .map(|w| &mut w.1 as &mut dyn Widget)
             .collect::<Vec<_>>();
 
-        crate::widget::stack_widgets_right(&mut workspaces, self.area);
+        crate::widget::stack_widgets_right(&self.lc, &mut workspaces, self.area);
     }
 }
 
 impl Drop for Workspaces {
     fn drop(&mut self) {
         if let Err(err) = self.worker_send.send(worker::ManagerMsg::Close) {
-            log::error!(
+            error!(
                 "'{}', failed to send the thread a message. error={err}",
-                self.name
+                self.lc
             )
         }
 
         if let Err(err) = self.worker_handle.take().map(|w| w.join()).transpose() {
-            log::error!(
+            error!(
                 "'{}', workspaces worker thread panicked. error={err:?}",
-                self.name
+                self.lc
             )
         }
     }
 }
 
 impl Widget for Workspaces {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
     fn area(&self) -> Rect {
         self.area
@@ -226,9 +227,9 @@ impl Widget for Workspaces {
 
     fn should_redraw(&mut self) -> bool {
         if let Err(err) = self.update_workspaces() {
-            log::warn!(
+            warn!(
                 "'{}' | should_redraw :: failed to update workspaces. error={err}",
-                self.name
+                self.lc
             );
         }
 
@@ -260,8 +261,9 @@ impl Widget for Workspaces {
             assert!(self.redraw.contains(RedrawState::Normal));
         }
 
-        #[cfg(feature = "workspaces-logs")]
-        log::trace!("'{}' | draw :: Redraw State: {:?}", self.name, self.redraw);
+        if self.lc.should_log {
+            trace!("'{}' | draw :: Redraw State: {:?}", self.lc, self.redraw);
+        }
 
         self.redraw = RedrawState::empty();
 
@@ -269,10 +271,10 @@ impl Widget for Workspaces {
             assert!(self.area.contains_rect(w.area()));
             if w.should_redraw() {
                 if let Err(err) = w.draw(ctx) {
-                    log::warn!(
+                    warn!(
                         "'{}', widget '{}' failed to draw. error={err}",
-                        self.name,
-                        w.name()
+                        self.lc,
+                        w.lc()
                     );
                 }
             }
@@ -290,7 +292,7 @@ impl Widget for Workspaces {
 
         if let Some((id, _w)) = self.workspaces.iter().find(|w| w.1.area().contains(point)) {
             #[cfg(feature = "workspaces-logs")]
-            log::debug!("'{}' | click :: clicked: {}", self.name, _w.name());
+            debug!("'{}' | click :: clicked: {}", self.name, _w.name());
             let _ = utils::send_hypr_command(utils::Command::MoveToWorkspace(*id))?;
         }
 
@@ -383,16 +385,10 @@ impl<T> WorkspacesBuilder<T> {
 }
 
 impl WorkspacesBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> Result<Workspaces> {
-        log::info!(
-            "'{name}' :: Initializing with height: {}",
-            self.desired_height
-        );
+    pub fn build(&self, lc: LC) -> Result<Workspaces> {
+        info!("{lc} :: Initializing with height: {}", self.desired_height);
 
-        let font = self
-            .font
-            .clone()
-            .unwrap_or_else(|| panic!("'{}' A font must be provided.", name));
+        let font = self.font.clone().unwrap();
 
         let workspace_builder = TextBox::builder()
             .font(font)
@@ -408,12 +404,12 @@ impl WorkspacesBuilder<HasFont> {
         let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();
         let (other_send, worker_recv) = mpsc::channel::<WorkerMsg>();
 
-        let wrk_name = name.to_owned();
+        let wkr_lc = lc.child("Worker Thread");
         let worker_handle = Some(
             std::thread::Builder::new()
-                .name(name.to_owned())
+                .name(lc.name.to_string())
                 .stack_size(32 * 1024)
-                .spawn(move || work(&wrk_name, other_recv, other_send))?,
+                .spawn(move || work(wkr_lc, other_recv, other_send))?,
         );
 
         Ok(Workspaces {
@@ -421,8 +417,8 @@ impl WorkspacesBuilder<HasFont> {
             worker_handle,
             worker_send,
             worker_recv,
+            lc,
 
-            name: name.into(),
             h_align: self.h_align,
             v_align: self.v_align,
             desired_height: self.desired_height,

@@ -1,5 +1,6 @@
 use super::draw::{color, prelude::*};
 use super::widget::{ClickType, Widget};
+use crate::log::*;
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -52,7 +53,7 @@ pub struct App {
 
 impl App {
     pub fn new(args: crate::Args) -> (Self, EventQueue<Self>) {
-        log::info!("new :: Starting wayland client");
+        info!("new :: Starting wayland client");
         let connection = Connection::connect_to_env().unwrap();
 
         let (globals, mut event_queue) = registry_queue_init(&connection).unwrap();
@@ -81,13 +82,13 @@ impl App {
             .font_path
             .and_then(|ref path| {
                 std::fs::read(path)
-                    .inspect_err(|err| log::warn!("app :: failed to load custom font. {err}"))
+                    .inspect_err(|err| warn!("app :: failed to load custom font. {err}"))
                     .ok()
             })
             .and_then(|data| {
                 let f = rusttype::Font::try_from_vec_and_index(data.to_vec(), args.font_index);
                 if f.is_none() {
-                    log::warn!("app :: failed to initialize custom font.");
+                    warn!("app :: failed to initialize custom font.");
                 }
                 f
             })
@@ -106,7 +107,7 @@ impl App {
                 .spacer_fg(color::PINE)
                 .bg(color::SURFACE)
                 .desired_height(args.height)
-                .build("Clock"),
+                .build(LC::new("Clock", cfg!(feature = "clock-logs"))),
         ));
 
         #[cfg(feature = "workspaces")]
@@ -120,10 +121,10 @@ impl App {
             .active_bg(color::PINE)
             .hover_fg(color::GOLD)
             .hover_bg(color::H_MED)
-            .build("Workspaces")
+            .build(LC::new("Workspaces", cfg!(feature = "workspaces-logs")))
         {
             Ok(w) => widgets.push(Box::new(w)),
-            Err(err) => log::warn!("new :: Workspaces failed to initialize. error={err}"),
+            Err(err) => warn!("new :: Workspaces failed to initialize. error={err}"),
         };
 
         #[cfg(any(feature = "battery", feature = "updated-last", feature = "cpu"))]
@@ -142,10 +143,10 @@ impl App {
                         .fg(color::ROSE)
                         .bg(color::SURFACE)
                         .desired_height(args.height)
-                        .build("Updated Last"),
+                        .build(LC::new("Updated Last", cfg!(feature = "updated-last-logs"))),
                 ));
             } else {
-                log::warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
+                warn!("Updated Last :: not starting, no time_stamp provided, use '--updated-last <TIME_SPAMP>'");
             }
 
             #[cfg(feature = "battery")]
@@ -161,12 +162,12 @@ impl App {
                 .desired_height(args.height)
                 .desired_width(args.height)
                 .h_align(Align::End)
-                .build("Battery")
+                .build(LC::new("Battery", cfg!(feature = "battery-logs")))
             {
                 Ok(w) => {
                     right_container.add(Box::new(w));
                 }
-                Err(err) => log::warn!("new :: Battery widget disabled. error={err}"),
+                Err(err) => warn!("new :: Battery widget disabled. error={err}"),
             }
 
             #[cfg(feature = "cpu")]
@@ -177,15 +178,17 @@ impl App {
                 .bar_filled(color::PINE)
                 .show_threshold(75.0)
                 .desired_height(args.height)
-                .build("CPU")
+                .build(LC::new("CPU", cfg!(feature = "cpu-logs")))
             {
                 Ok(w) => {
                     right_container.add(Box::new(w));
                 }
-                Err(err) => log::warn!("new :: CPU widget disabled. error={err}"),
+                Err(err) => warn!("new :: CPU widget disabled. error={err}"),
             }
 
-            widgets.push(Box::new(right_container.build("Right Container")));
+            widgets.push(Box::new(
+                right_container.build(LC::new("Right Container", true)),
+            ));
         }
 
         let mut me = Self {
@@ -298,10 +301,9 @@ impl LayerShellHandler for App {
             self.width = self.default_width; // let's hope this never recurses endlessly
             self.height = self.default_height;
         } else {
-            log::debug!(
+            debug!(
                 "configure :: new size requested ({}, {})",
-                configure.new_size.0,
-                configure.new_size.1
+                configure.new_size.0, configure.new_size.1
             );
             self.width = configure.new_size.0;
             self.height = configure.new_size.1;
@@ -322,10 +324,10 @@ impl LayerShellHandler for App {
                 x: wid_width,
                 y: wid_height,
             };
-            log::trace!("configure :: '{}' size: {size}", w.name());
+            trace!("configure :: {} size: {size}", w.lc());
 
             let area = canvas.place_at(size, w.h_align(), w.v_align());
-            log::trace!("configure :: '{}' resized: {area}", w.name());
+            trace!("configure :: {} resized: {area}", w.lc());
             w.resize(area);
         }
 
@@ -355,7 +357,7 @@ impl SeatHandler for App {
         capability: Capability,
     ) {
         if capability == Capability::Pointer && self.pointer.is_none() {
-            log::debug!("new_capability :: Set pointer capability");
+            debug!("new_capability :: Set pointer capability");
             let pointer = self
                 .seat_state
                 .get_pointer(qh, &seat)
@@ -372,7 +374,7 @@ impl SeatHandler for App {
         capability: Capability,
     ) {
         if capability == Capability::Pointer && self.pointer.is_some() {
-            log::debug!("new_capability :: Unset pointer capability");
+            debug!("new_capability :: Unset pointer capability");
             self.pointer.take().unwrap().release();
         }
     }
@@ -392,7 +394,7 @@ impl PointerHandler for App {
             let point: Point = event.position.into();
             // Ignore events for other surfaces
             if &event.surface != self.layer_surface.wl_surface() {
-                log::trace!("got a click from another surface");
+                trace!("got a click from another surface");
                 continue;
             }
             use PointerEventKind as PEK;
@@ -407,9 +409,9 @@ impl PointerHandler for App {
                         .find(|(_idx, w)| w.area().contains(point))
                     {
                         if let Err(err) = w.motion(point) {
-                            log::warn!(
-                                "pointer_frame :: widget '{}' motion failed. error={err}",
-                                w.name()
+                            warn!(
+                                "pointer_frame :: widget {} motion failed. error={err}",
+                                w.lc()
                             );
                         }
                         self.last_moved_in = Some(idx);
@@ -417,11 +419,11 @@ impl PointerHandler for App {
                 }
                 PEK::Leave { .. } => {
                     if let Some(w) = self.last_moved_in.and_then(|idx| self.widgets.get_mut(idx)) {
-                        log::trace!("pointer_frame :: left widget '{}'", w.name());
+                        trace!("pointer_frame :: left widget {}", w.lc());
                         if let Err(err) = w.motion_leave(point) {
-                            log::warn!(
-                                "pointer_frame :: widget '{}' motion_leave failed. error={err}",
-                                w.name()
+                            warn!(
+                                "pointer_frame :: widget {} motion_leave failed. error={err}",
+                                w.lc()
                             );
                         }
                     }
@@ -435,9 +437,9 @@ impl PointerHandler for App {
                         .find(|(_idx, w)| w.area().contains(point))
                         .map(|(idx, w)| {
                             if let Err(err) = w.motion(point) {
-                                log::warn!(
-                                    "pointer_frame :: widget '{}' motion failed. error={err}",
-                                    w.name()
+                                warn!(
+                                    "pointer_frame :: widget {} motion failed. error={err}",
+                                    w.lc()
                                 );
                             }
                             idx
@@ -447,11 +449,11 @@ impl PointerHandler for App {
                         if let Some(w) =
                             self.last_moved_in.and_then(|idx| self.widgets.get_mut(idx))
                         {
-                            log::trace!("pointer_frame :: left widget '{}'", w.name());
+                            trace!("pointer_frame :: left widget {}", w.lc());
                             if let Err(err) = w.motion_leave(point) {
-                                log::warn!(
-                                    "pointer_frame :: widget '{}' motion_leave failed. error={err}",
-                                    w.name()
+                                warn!(
+                                    "pointer_frame :: widget {} motion_leave failed. error={err}",
+                                    w.lc()
                                 );
                             }
                         }
@@ -460,13 +462,13 @@ impl PointerHandler for App {
                 }
                 PEK::Press { .. } => {
                     // only care about releasing, not pressing
-                    //log::trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
+                    //trace!("pointer_frame :: Press {:x} @ {:?}", button, event.position);
                 }
                 PEK::Release { button, .. } => {
                     if let Some(widget) = self.widgets.iter_mut().find(|w| w.area().contains(point))
                     {
                         if let Err(err) = widget.click(ClickType::new(button), point) {
-                            log::warn!("click on '{}' failed. error={err}", widget.name());
+                            warn!("click on {} failed. error={err}", widget.lc());
                         }
                     }
                 }
@@ -475,7 +477,7 @@ impl PointerHandler for App {
                     vertical,
                     ..
                 } => {
-                    log::trace!("pointer_frame :: Scroll H:{horizontal:?}, V:{vertical:?}");
+                    trace!("pointer_frame :: Scroll H:{horizontal:?}, V:{vertical:?}");
                 }
             }
         }
@@ -533,14 +535,14 @@ impl App {
         ctx.damage.clear();
 
         if self.redraw {
-            log::debug!("draw :: full redraw");
+            debug!("draw :: full redraw");
             rect.draw(color::SURFACE, &mut ctx);
         }
 
         for w in self.widgets.iter_mut() {
             if w.should_redraw() {
                 if let Err(err) = w.draw(&mut ctx) {
-                    log::warn!("draw :: widget '{}' failed to draw: error={err}", w.name());
+                    warn!("draw :: widget {} failed to draw: error={err}", w.lc());
                 }
             }
             #[cfg(feature = "outlines")]
@@ -580,7 +582,7 @@ impl App {
 
         if cfg!(feature = "height-test") {
             // hack to test all sizes above your own (until it hits some limit)
-            log::info!("draw :: height: {}", self.height);
+            info!("draw :: height: {}", self.height);
             self.layer_surface
                 .set_size(self.default_width, self.height - 1);
             self.layer_surface
@@ -592,11 +594,11 @@ impl App {
     pub fn run_queue(&mut self, event_queue: &mut EventQueue<Self>) {
         loop {
             if let Err(err) = event_queue.blocking_dispatch(self) {
-                log::warn!("run_queue :: event queue error: error={err}");
+                warn!("run_queue :: event queue error: error={err}");
             }
 
             if self.should_exit {
-                log::info!("run_queue :: exiting...");
+                info!("run_queue :: exiting...");
                 break;
             }
         }

@@ -1,4 +1,5 @@
 pub mod draw;
+pub mod log;
 pub mod utils;
 pub mod widget;
 
@@ -49,7 +50,7 @@ pub struct Args {
 
 pub fn main() {
     pretty_env_logger::formatted_builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(::log::LevelFilter::Info)
         .parse_env("BAR_WLRS_LOG")
         .init();
 

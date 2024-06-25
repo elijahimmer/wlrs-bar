@@ -4,10 +4,11 @@ pub use place_widgets::*;
 pub mod container;
 
 use crate::draw::prelude::*;
+use crate::log::*;
 use anyhow::Result;
 
 pub trait Widget {
-    fn name(&self) -> &str;
+    fn lc(&self) -> &LC;
     fn area(&self) -> Rect;
     fn h_align(&self) -> Align;
     fn v_align(&self) -> Align;

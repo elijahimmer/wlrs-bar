@@ -1,4 +1,5 @@
 use crate::draw::prelude::*;
+use crate::log::*;
 use crate::widget::{ClickType, Widget};
 
 use anyhow::{bail, Result};
@@ -14,12 +15,12 @@ bitflags::bitflags! {
         const CurrentlyShown = 1 << 1;
         const ProgressiveRedraw = 1 << 2;
 
-        const IsShown = Self::ShouldBeShown.bits() | Self::CurrentlyShown.bits();
+        const ShownAsItShouldBe = Self::ShouldBeShown.bits() | Self::CurrentlyShown.bits();
     }
 }
 
 pub struct Cpu {
-    name: Box<str>,
+    lc: LC,
     cpu_tracker: System,
     cpu_refresh: CpuRefreshKind,
     show_threshold: f32,
@@ -41,8 +42,8 @@ impl Cpu {
 }
 
 impl Widget for Cpu {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
     fn area(&self) -> Rect {
         self.text.area()
@@ -81,27 +82,29 @@ impl Widget for Cpu {
             .clamp(0.0, 100.0);
 
         if cpu_used < self.show_threshold {
-            #[cfg(feature = "cpu-logs")]
-            log::debug!(
-                "'{}' | should_redraw :: shouldn't be shown '{}'",
-                self.name,
-                cpu_used
-            );
+            if self.lc.should_log {
+                debug!(
+                    "'{}' | should_redraw :: shouldn't be shown '{}'",
+                    self.lc, cpu_used
+                );
+            }
             self.redraw -= !RedrawState::CurrentlyShown;
             self.redraw.contains(RedrawState::CurrentlyShown)
         } else {
-            #[cfg(feature = "cpu-logs")]
-            log::debug!(
-                "'{}' | should_redraw :: should be shown '{}'",
-                self.name,
-                cpu_used
-            );
+            if self.lc.should_log {
+                debug!(
+                    "'{}' | should_redraw :: should be shown '{}'",
+                    self.lc, cpu_used
+                );
+            }
             self.redraw |= RedrawState::ShouldBeShown;
 
             self.progress.set_progress(cpu_used);
             // self.text.should_redraw(); // We don't need this right now
             if self.progress.should_redraw() {
-                log::info!("should update");
+                if self.lc.should_log {
+                    info!("should update");
+                }
                 self.redraw |= RedrawState::ProgressiveRedraw;
             }
             self.redraw.contains(RedrawState::ProgressiveRedraw)
@@ -111,26 +114,28 @@ impl Widget for Cpu {
 
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         if ctx.full_redraw {
-            #[cfg(feature = "cpu-logs")]
-            log::trace!("'{}' | draw :: full redraw", self.name);
+            if self.lc.should_log {
+                trace!("'{}' | draw :: full redraw", self.lc);
+            }
 
             self.area.draw(self.bg, ctx);
         }
 
-        if self.redraw.contains(RedrawState::ShouldBeShown) {
-            if ctx.full_redraw
+        if self.redraw.contains(RedrawState::ShouldBeShown)
+            && (ctx.full_redraw
                 || self.redraw.contains(RedrawState::ProgressiveRedraw)
-                || !self.redraw.contains(RedrawState::CurrentlyShown)
-            {
-                self.redraw = RedrawState::IsShown;
-                #[cfg(feature = "cpu-logs")]
-                log::trace!("'{}' | draw :: showing widgets", self.name,);
-                self.progress.draw(ctx)?;
-                self.text.draw(ctx)?;
+                || !self.redraw.contains(RedrawState::CurrentlyShown))
+        {
+            if self.lc.should_log {
+                trace!("'{}' | draw :: showing widgets", self.lc);
             }
+            self.redraw = RedrawState::ShownAsItShouldBe;
+            self.progress.draw(ctx)?;
+            self.text.draw(ctx)?;
         } else if self.redraw.contains(RedrawState::CurrentlyShown) {
-            #[cfg(feature = "cpu-logs")]
-            log::trace!("'{}' | draw :: not showing", self.name);
+            if self.lc.should_log {
+                trace!("'{}' | draw :: not showing", self.lc);
+            }
             self.redraw = RedrawState::empty();
             self.area.draw(self.bg, ctx);
         }
@@ -197,12 +202,12 @@ impl<T> CpuBuilder<T> {
 }
 
 impl CpuBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> Result<Cpu> {
+    pub fn build(&self, lc: LC) -> Result<Cpu> {
         if !sysinfo::IS_SUPPORTED_SYSTEM {
             bail!("System not supported.");
         }
         let height = self.desired_height.unwrap_or(u32::MAX);
-        log::info!("'{name}' :: Initializing with height: {height}");
+        info!("{lc} :: Initializing with height: {height}");
         let font = self.font.clone().unwrap();
 
         let text = TextBox::builder()
@@ -215,7 +220,7 @@ impl CpuBuilder<HasFont> {
             .h_align(Align::CenterAt(0.575))
             .text("")
             .desired_text_height(self.desired_height.map(|s| s * 20 / 23).unwrap_or(u32::MAX))
-            .build(&(name.to_owned() + " Text"));
+            .build(lc.child("Text"));
 
         let cpu_refresh = CpuRefreshKind::new().with_cpu_usage().without_frequency();
 
@@ -231,12 +236,12 @@ impl CpuBuilder<HasFont> {
             .starting_bound(0.0)
             .ending_bound(100.0)
             .desired_height(height)
-            .build(&(name.to_owned() + " Progress"));
+            .build(lc.child("Progress"));
 
         progress.set_progress(0.0);
 
         Ok(Cpu {
-            name: name.into(),
+            lc,
             cpu_tracker,
             cpu_refresh,
             show_threshold: self.show_threshold.unwrap_or(75.0),

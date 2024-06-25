@@ -1,4 +1,6 @@
 use super::utils::*;
+use crate::log::*;
+
 use anyhow::{bail, Result};
 use std::io::Read;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
@@ -18,7 +20,7 @@ impl WorkerMsg {
             "createworkspace" => Some(Self::WorkspaceCreate(msg.parse()?)),
             "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse()?)),
             _ => {
-                //log::trace!("work :: cmd: '{cmd}' msg: '{msg}'");
+                //trace!("work :: cmd: '{cmd}' msg: '{msg}'");
                 None
             }
         })
@@ -30,10 +32,10 @@ pub enum ManagerMsg {
     Close,
 }
 
-pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Result<()> {
+pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Result<()> {
     let mut socket = open_hypr_socket(HyprSocket::Event)?;
     if let Err(err) = socket.set_nonblocking(true) {
-        log::warn!("'{name}' | work :: couldn't set socket to non-blocking. error={err}");
+        warn!("{lc} | work :: couldn't set socket to non-blocking. error={err}");
     }
 
     send.send(WorkerMsg::WorkspaceReset)?;
@@ -49,12 +51,12 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
         match recv.try_recv() {
             Ok(msg) => match msg {
                 ManagerMsg::Close => {
-                    log::info!("'{name}' work :: told to close");
+                    info!("{lc} work :: told to close");
                     break;
                 }
             },
             Err(TryRecvError::Disconnected) => {
-                log::warn!("'{name}' work :: manager's send channel disconnected");
+                warn!("{lc} work :: manager's send channel disconnected");
                 break;
             }
             Err(TryRecvError::Empty) => {}
@@ -66,7 +68,7 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             Ok(b) => b,
             Err(err) => match err.kind() {
                 std::io::ErrorKind::WouldBlock => continue,
-                _ => bail!("'{name}' | work :: failed to read from socket. error={err}"),
+                _ => bail!("{lc} | work :: failed to read from socket. error={err}"),
             },
         };
 
@@ -75,7 +77,7 @@ pub fn work(name: &str, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> 
             .filter_map(|line| line.find(">>").map(|idx| (&line[..idx], &line[idx + 2..])))
             .filter_map(|(cmd, msg)| {
                 WorkerMsg::parse(cmd, msg)
-                    .map_err(|err| log::warn!("Failed to parse WorkerMsg. error='{err}'"))
+                    .map_err(|err| warn!("{lc} | work :: Failed to parse WorkerMsg. error='{err}'"))
                     .ok()?
             })
             .try_for_each(|msg| send.send(msg))?;

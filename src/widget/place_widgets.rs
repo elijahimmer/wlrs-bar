@@ -1,6 +1,8 @@
 use super::*;
+use crate::log::LC;
 
 pub fn stack_widgets_right(
+    lc: &LC,
     widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget>],
     area: Rect,
 ) {
@@ -39,7 +41,9 @@ pub fn stack_widgets_right(
                 y: area.max.y,
             },
         );
-        log::trace!("stack_widgets_right :: new_area: {new_area}, max_area: {area}");
+        if lc.should_log {
+            log::trace!("{lc} | stack_widgets_right :: new_area: {new_area}, max_area: {area}");
+        }
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(i32::try_from(w).unwrap());
         new_area
@@ -55,6 +59,7 @@ pub fn stack_widgets_right(
 
 /// stack widgets, on after another, from the right to the left.
 pub fn stack_widgets_left(
+    lc: &LC,
     widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget>],
     area: Rect,
 ) {
@@ -93,7 +98,9 @@ pub fn stack_widgets_left(
                 y: area.min.y,
             },
         );
-        log::trace!("stack_widgets_left :: new_area: {new_area}, max_area: {area}");
+        if lc.should_log {
+            log::trace!("{lc} | stack_widgets_left :: new_area: {new_area}, max_area: {area}");
+        }
         assert!(area.contains_rect(new_area));
         starting_from = starting_from.x_shift(-(i32::try_from(w).unwrap()));
         new_area
@@ -108,9 +115,13 @@ pub fn stack_widgets_left(
 /// scaling all down by the same ratio if needed.
 /// the widgets are places the center first, then left and right.
 /// if there is a even amount, 2 are placed with edges on the center line.
-pub fn center_widgets(widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget>], area: Rect) {
+pub fn center_widgets(
+    lc: &LC,
+    widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget>],
+    area: Rect,
+) {
     let (width_max, height_max) = (area.width(), area.height());
-    log::trace!("center_widgets :: {area}");
+    log::trace!("{lc} | center_widgets :: {area}");
     let mut widths: Vec<_> = widgets
         .iter()
         .map(|w| w.desired_width(height_max))
@@ -143,7 +154,7 @@ pub fn center_widgets(widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget
             },
         area.max,
     );
-    log::trace!("center_widgets :: left: {left}, right: {right}");
+    log::trace!("{lc} | center_widgets :: left: {left}, right: {right}");
 
     if widths.len() % 2 == 1 {
         // is odd
@@ -156,7 +167,7 @@ pub fn center_widgets(widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget
             Align::Center,
             Align::Center,
         );
-        log::trace!("center_widgets :: rect: {rect}, width: {width}");
+        log::trace!("{lc} | center_widgets :: rect: {rect}, width: {width}");
 
         widget.resize(rect);
 

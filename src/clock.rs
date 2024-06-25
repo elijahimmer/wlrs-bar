@@ -1,3 +1,4 @@
+use super::log::LC;
 use crate::draw::prelude::*;
 use crate::widget::{center_widgets, ClickType, Widget};
 
@@ -7,7 +8,7 @@ use rusttype::Font;
 use std::marker::PhantomData;
 
 pub struct Clock {
-    name: Box<str>,
+    lc: LC,
     desired_height: u32,
     area: Rect,
     h_align: Align,
@@ -29,7 +30,7 @@ impl Clock {
 
         //log::warn!(
         //    "'{}' update_time :: {}:{}:{}",
-        //    self.name,
+        //    self.lc,
         //    time.hour(),
         //    time.minute(),
         //    time.second()
@@ -65,8 +66,8 @@ macro_rules! inner_as_slice {
 }
 
 impl Widget for Clock {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
 
     fn area(&self) -> Rect {
@@ -92,7 +93,7 @@ impl Widget for Clock {
     }
 
     fn resize(&mut self, area: Rect) {
-        center_widgets(&mut inner_as_slice!(self mut), area);
+        center_widgets(&self.lc, &mut inner_as_slice!(self mut), area);
         self.area = area;
     }
 
@@ -108,8 +109,8 @@ impl Widget for Clock {
                 if let Err(err) = w.draw(ctx) {
                     log::warn!(
                         "'{}' | draw :: widget '{}' failed to draw. error={err}",
-                        self.name,
-                        w.name()
+                        self.lc,
+                        w.lc().name
                     );
                 }
             }
@@ -178,13 +179,10 @@ impl<T> ClockBuilder<T> {
 }
 
 impl ClockBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> Clock {
+    pub fn build(&self, lc: LC) -> Clock {
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
-        log::info!("'{name}' :: Initializing with height: {desired_height}");
-        let font = self
-            .font
-            .clone()
-            .unwrap_or_else(|| panic!("'{}' A font should be provided", name));
+        log::info!("{lc} :: Initializing with height: {desired_height}");
+        let font = self.font.clone().unwrap();
 
         let time_builder = TextBox::builder()
             .font(font.clone())
@@ -203,15 +201,15 @@ impl ClockBuilder<HasFont> {
             .h_margins(desired_height / 5)
             .v_align(Align::CenterAt(0.45));
 
-        let __hours = time_builder.build(&(name.to_owned() + "   hours"));
-        let minutes = time_builder.build(&(name.to_owned() + " minutes"));
-        let seconds = time_builder.build(&(name.to_owned() + " seconds"));
+        let __hours = time_builder.build(lc.child("  hours"));
+        let minutes = time_builder.build(lc.child("minutes"));
+        let seconds = time_builder.build(lc.child("seconds"));
 
-        let spacer1 = spacer_builder.build(&(name.to_owned() + " spacer1"));
-        let spacer2 = spacer_builder.build(&(name.to_owned() + " spacer2"));
+        let spacer1 = spacer_builder.build(lc.child("spacer1"));
+        let spacer2 = spacer_builder.build(lc.child("spacer2"));
 
         Clock {
-            name: name.into(),
+            lc,
             desired_height,
             h_align: self.h_align,
             v_align: self.v_align,

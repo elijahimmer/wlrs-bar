@@ -1,4 +1,5 @@
 use crate::draw::prelude::*;
+use crate::log::*;
 use crate::widget::{ClickType, Widget};
 
 use anyhow::Result;
@@ -20,7 +21,7 @@ pub enum BatteryStatus {
 }
 
 pub struct Battery {
-    name: Box<str>,
+    lc: LC,
     battery_path: PathBuf,
     desired_height: u32,
     area: Rect,
@@ -74,7 +75,7 @@ impl Battery {
             _ => {
                 log::warn!(
                     "'{}' | update :: unknown battery status: '{status}'",
-                    self.name
+                    self.lc
                 );
                 BatteryStatus::Normal
             }
@@ -92,7 +93,7 @@ impl Battery {
             self.progress.set_filled_color(c);
             self.battery.set_fg(c);
             self.status = status;
-            //log::trace!("'{}' | update :: color: {c}", self.name);
+            //log::trace!("'{}' | update :: color: {c}", self.lc);
         }
 
         self.progress.set_progress(charge);
@@ -102,8 +103,8 @@ impl Battery {
 }
 
 impl Widget for Battery {
-    fn name(&self) -> &str {
-        &self.name
+    fn lc(&self) -> &LC {
+        &self.lc
     }
 
     fn area(&self) -> Rect {
@@ -226,7 +227,7 @@ impl<T> BatteryBuilder<T> {
 }
 
 impl BatteryBuilder<HasFont> {
-    pub fn build(&self, name: &str) -> Result<Battery> {
+    pub fn build(&self, lc: LC) -> Result<Battery> {
         let battery_path = self
             .battery_path
             .clone()
@@ -239,7 +240,7 @@ impl BatteryBuilder<HasFont> {
         _ = std::fs::read_dir(&battery_path)?;
 
         let desired_height = self.desired_height.unwrap_or(u32::MAX / 2);
-        log::info!("'{name}' :: Initializing with height: {desired_height}");
+        log::info!("{lc} :: Initializing with height: {desired_height}");
         let font = self.font.clone().unwrap();
 
         let battery = Icon::builder()
@@ -252,7 +253,7 @@ impl BatteryBuilder<HasFont> {
             .right_margin(0.12)
             .left_margin(0.1)
             .v_margins(0.1)
-            .build(&(name.to_owned() + " Outline"));
+            .build(lc.child("Outline"));
 
         let charging = Icon::builder()
             .font(font)
@@ -262,7 +263,7 @@ impl BatteryBuilder<HasFont> {
             .h_align(Align::End)
             .v_align(Align::Center)
             .right_margin(0.02)
-            .build(&(name.to_owned() + " Charging"));
+            .build(lc.child("Charging"));
 
         let progress = Progress::builder()
             .top_margin(0.25)
@@ -275,10 +276,10 @@ impl BatteryBuilder<HasFont> {
             .filled_color(self.normal_color)
             .unfilled_color(color::CLEAR)
             .bg(color::CLEAR)
-            .build(&(name.to_owned() + " Progress"));
+            .build(lc.child("Progress"));
 
         Ok(Battery {
-            name: name.into(),
+            lc,
             battery_path,
             desired_height,
             h_align: self.h_align,
