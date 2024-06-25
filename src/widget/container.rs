@@ -80,7 +80,7 @@ impl Widget for Container {
     fn draw(&mut self, ctx: &mut DrawCtx) -> Result<()> {
         for (w, should) in self.widgets.iter_mut().zip(self.should_redraw.drain(..)) {
             if should {
-                if self.lc.should_log {
+                if w.lc().should_log {
                     info!("{} | draw :: drawing: {}", self.lc, w.lc().name);
                 }
                 w.draw(ctx)?;

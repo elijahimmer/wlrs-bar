@@ -21,7 +21,7 @@ wayland-client = { version = "0.31.2", features = ["log"] }
 [features]
 default = ["widgets"]
 
-widgets = ["clock", "workspaces", "updated-last", "battery", "cpu"]
+widgets = ["clock", "workspaces", "updated-last", "battery", "cpu", "ram"]
 clock = []
 workspaces = []
 updated-last = []
@@ -38,6 +38,7 @@ the-flood-gate = ["textbox-logs", "icon-logs", "progress-logs", "clock-logs", "u
 damage = []
 # show outlines of every top level widget
 outlines = []
+all-outlines = ["outlines", "textbox-outlines-bounding", "icon-outlines", "progress-outlines", "workspaces-outlines", "cpu-outlines", "ram-outlines"]
 # grows in size every frame
 height-test = []
 
@@ -72,8 +73,10 @@ updated-last-logs = []
 battery-all = ["battery", "battery-logs"]
 battery-logs = []
 
-cpu-all = ["cpu", "cpu-logs"]
+cpu-all = ["cpu", "cpu-logs", "cpu-outlines"]
 cpu-logs = []
+cpu-outlines = []
 
-ram-all = ["ram", "ram-logs"]
+ram-all = ["ram", "ram-logs", "ram-outlines"]
 ram-logs = []
+ram-outlines = []

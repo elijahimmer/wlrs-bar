@@ -6,7 +6,7 @@ use anyhow::{bail, Result};
 use chrono::{DateTime, TimeDelta, Utc};
 use rusttype::Font;
 use std::marker::PhantomData;
-use sysinfo::{CpuRefreshKind, RefreshKind, System};
+use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
 bitflags::bitflags! {
     #[derive(Clone, Default, Debug)]
@@ -19,10 +19,10 @@ bitflags::bitflags! {
     }
 }
 
-pub struct Cpu {
+pub struct Ram {
     lc: LC,
-    cpu_tracker: System,
-    cpu_refresh: CpuRefreshKind,
+    ram_tracker: System,
+    ram_refresh: MemoryRefreshKind,
     show_threshold: f32,
     last_refreshed: DateTime<Utc>,
     refresh_interval: TimeDelta,
@@ -35,13 +35,13 @@ pub struct Cpu {
     progress: Progress,
 }
 
-impl Cpu {
-    pub fn builder() -> CpuBuilder<NeedsFont> {
-        CpuBuilder::<NeedsFont>::new()
+impl Ram {
+    pub fn builder() -> RamBuilder<NeedsFont> {
+        RamBuilder::<NeedsFont>::new()
     }
 }
 
-impl Widget for Cpu {
+impl Widget for Ram {
     fn lc(&self) -> &LC {
         &self.lc
     }
@@ -73,19 +73,18 @@ impl Widget for Cpu {
         }
 
         self.last_refreshed = now;
-        self.cpu_tracker.refresh_cpu_specifics(self.cpu_refresh);
+        self.ram_tracker.refresh_memory_specifics(self.ram_refresh);
 
-        let cpu_used = self
-            .cpu_tracker
-            .global_cpu_info()
-            .cpu_usage()
-            .clamp(0.0, 100.0);
+        let ram_used = self.ram_tracker.used_memory();
+        let ram_total = self.ram_tracker.total_memory();
 
-        if cpu_used < self.show_threshold {
+        let ram_percent = (ram_used as f32 / ram_total as f32).clamp(0.0, 1.0);
+
+        if ram_percent < self.show_threshold {
             if self.lc.should_log {
                 debug!(
                     "{} | should_redraw :: shouldn't be shown {}",
-                    self.lc, cpu_used
+                    self.lc, ram_percent
                 );
             }
             self.redraw -= !RedrawState::CurrentlyShown;
@@ -94,12 +93,12 @@ impl Widget for Cpu {
             if self.lc.should_log {
                 debug!(
                     "{} | should_redraw :: should be shown {}",
-                    self.lc, cpu_used
+                    self.lc, ram_percent
                 );
             }
             self.redraw |= RedrawState::ShouldBeShown;
 
-            self.progress.set_progress(cpu_used);
+            self.progress.set_progress(ram_percent);
             // self.text.should_redraw(); // We don't need this right now
             if self.progress.should_redraw() {
                 if self.lc.should_log {
@@ -140,7 +139,7 @@ impl Widget for Cpu {
             self.area.draw(self.bg, ctx);
         }
 
-        #[cfg(feature = "cpu-outlines")]
+        #[cfg(feature = "ram-outlines")]
         self.progress.area().draw_outline(color::LOVE, ctx);
 
         Ok(())
@@ -159,7 +158,7 @@ impl Widget for Cpu {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct CpuBuilder<T> {
+pub struct RamBuilder<T> {
     font: Option<Font<'static>>,
     desired_height: Option<u32>,
     h_align: Align,
@@ -173,8 +172,8 @@ pub struct CpuBuilder<T> {
     _state: PhantomData<T>,
 }
 
-impl<T> CpuBuilder<T> {
-    pub fn new() -> CpuBuilder<NeedsFont> {
+impl<T> RamBuilder<T> {
+    pub fn new() -> RamBuilder<NeedsFont> {
         Default::default()
     }
 
@@ -185,8 +184,8 @@ impl<T> CpuBuilder<T> {
         Color, fg bg bar_filled;
     }
 
-    pub fn font(self, font: Font<'static>) -> CpuBuilder<HasFont> {
-        CpuBuilder {
+    pub fn font(self, font: Font<'static>) -> RamBuilder<HasFont> {
+        RamBuilder {
             _state: PhantomData,
             font: Some(font),
 
@@ -201,8 +200,8 @@ impl<T> CpuBuilder<T> {
     }
 }
 
-impl CpuBuilder<HasFont> {
-    pub fn build(&self, lc: LC) -> Result<Cpu> {
+impl RamBuilder<HasFont> {
+    pub fn build(&self, lc: LC) -> Result<Ram> {
         if !sysinfo::IS_SUPPORTED_SYSTEM {
             bail!("System not supported.");
         }
@@ -217,39 +216,38 @@ impl CpuBuilder<HasFont> {
             .right_margin(self.desired_height.unwrap_or(0) / 5)
             .fg(self.fg)
             .bg(color::CLEAR)
-            .h_align(Align::CenterAt(0.55))
-            .text("󰻠")
+            .h_align(Align::CenterAt(0.575))
+            .text("")
             .desired_text_height(self.desired_height.map(|s| s * 20 / 23).unwrap_or(u32::MAX))
             .build(lc.child("Text"));
 
-        let cpu_refresh = CpuRefreshKind::new().with_cpu_usage().without_frequency();
+        let ram_refresh = MemoryRefreshKind::new().with_ram().without_swap();
 
-        let refresh_kind = RefreshKind::new().with_cpu(cpu_refresh);
+        let refresh_kind = RefreshKind::new().with_memory(ram_refresh);
 
-        let mut cpu_tracker = System::new_with_specifics(refresh_kind);
-        cpu_tracker.refresh_cpu_specifics(cpu_refresh); // initial to get measurements correct
+        let ram_tracker = System::new_with_specifics(refresh_kind);
 
         let mut progress = Progress::builder()
             .unfilled_color(color::CLEAR)
             .filled_color(self.bar_filled)
             .bg(self.bg)
             .starting_bound(0.0)
-            .ending_bound(100.0)
+            .ending_bound(1.0)
             .desired_height(height)
             .build(lc.child("Progress"));
 
         progress.set_progress(0.0);
 
-        Ok(Cpu {
+        Ok(Ram {
             lc,
-            cpu_tracker,
-            cpu_refresh,
+            ram_tracker,
+            ram_refresh,
             show_threshold: self.show_threshold.unwrap_or(75.0),
             text,
             progress,
             last_refreshed: Utc::now(),
             refresh_interval: TimeDelta::from_std(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).unwrap()
-                * 2,
+                * 5,
             bg: self.bg,
             redraw: Default::default(),
             area: Default::default(),

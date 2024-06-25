@@ -11,6 +11,8 @@ pub mod battery;
 pub mod clock;
 #[cfg(feature = "cpu")]
 pub mod cpu;
+#[cfg(feature = "ram")]
+pub mod ram;
 #[cfg(feature = "updated-last")]
 pub mod updated_last;
 #[cfg(feature = "workspaces")]

@@ -186,6 +186,22 @@ impl App {
                 Err(err) => warn!("new :: CPU widget disabled. error={err}"),
             }
 
+            #[cfg(feature = "ram")]
+            match crate::ram::Ram::builder()
+                .font(font.clone())
+                .fg(color::LOVE)
+                .bg(color::SURFACE)
+                .bar_filled(color::PINE)
+                .show_threshold(75.0)
+                .desired_height(args.height)
+                .build(LC::new("RAM", cfg!(feature = "ram-logs")))
+            {
+                Ok(w) => {
+                    right_container.add(Box::new(w));
+                }
+                Err(err) => warn!("new :: RAM widget disabled. error={err}"),
+            }
+
             widgets.push(Box::new(
                 right_container.build(LC::new("Right Container", true)),
             ));
