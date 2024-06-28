@@ -12,13 +12,13 @@ pub struct LC {
 impl LC {
     pub fn new(name: &str, should_log: bool) -> Self {
         Self {
-            name: format!("'{}'", name).into(),
+            name: name.into(),
             should_log,
         }
     }
     pub fn child(&self, name_extention: &str) -> Self {
         Self {
-            name: format!("{} {}", self.name, name_extention).into(),
+            name: format!("{} > {}", self.name, name_extention).into(),
             should_log: self.should_log,
         }
     }
@@ -27,6 +27,10 @@ impl LC {
             name: format!("{} & {}", self, other).into(),
             should_log: self.should_log || other.should_log,
         }
+    }
+
+    pub fn with_log(self, should_log: bool) -> Self {
+        Self { should_log, ..self }
     }
 }
 

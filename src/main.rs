@@ -15,6 +15,8 @@ pub mod cpu;
 pub mod ram;
 #[cfg(feature = "updated-last")]
 pub mod updated_last;
+#[cfg(feature = "volume")]
+pub mod volume;
 #[cfg(feature = "workspaces")]
 pub mod workspaces;
 

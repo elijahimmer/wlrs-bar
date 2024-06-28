@@ -12,11 +12,12 @@ chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 clap = { version = "4.5.7", features = ["cargo", "derive"] }
 log = "0.4.21"
 num-traits = "0.2.19"
+alsa = "0.9.0"
 pretty_env_logger = "0.5.0"
 rusttype = "0.9.3"
-smithay-client-toolkit = "0.18.1"
+smithay-client-toolkit = "0.19.1"
 sysinfo = { version = "0.30.12", default-features = false }
-wayland-client = { version = "0.31.2", features = ["log"] }
+wayland-client = { version = "0.31.3", features = ["log"] }
 
 [features]
 default = ["widgets"]
@@ -28,6 +29,7 @@ updated-last = []
 battery = []
 cpu = []
 ram = []
+volume = []
 
 # DEBUG FEATURES:
 debug = ["outlines"]
@@ -80,3 +82,8 @@ cpu-outlines = []
 ram-all = ["ram", "ram-logs", "ram-outlines"]
 ram-logs = []
 ram-outlines = []
+
+volume-all = ["volume", "volume-logs", "volume-outlines", "volume-worker-logs"]
+volume-logs = []
+volume-outlines = []
+volume-worker-logs = []

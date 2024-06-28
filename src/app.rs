@@ -29,9 +29,9 @@ use wayland_client::{
 
 pub struct App {
     //connection: Connection,
-    //compositor: CompositorState,
-    //layer_shell: LayerShell,
-    layer_surface: LayerSurface,
+    compositor: CompositorState,
+    layer_shell: LayerShell,
+    layer_surface: Option<LayerSurface>, // TODO: support multiple outputs
     pointer: Option<wl_pointer::WlPointer>,
 
     shm_state: Shm,
@@ -129,7 +129,13 @@ impl App {
             Err(err) => warn!(lc, "| new :: Workspaces failed to initialize. error={err}"),
         };
 
-        #[cfg(any(feature = "battery", feature = "updated-last", feature = "cpu"))]
+        #[cfg(any(
+            feature = "battery",
+            feature = "updated-last",
+            feature = "cpu",
+            feature = "ram",
+            feature = "volume"
+        ))]
         {
             let mut right_container = crate::widget::container::Container::builder()
                 .h_align(Align::End)
@@ -172,6 +178,21 @@ impl App {
                 Err(err) => warn!(lc, "| new :: Battery widget disabled. error={err}"),
             }
 
+            #[cfg(feature = "volume")]
+            match crate::volume::Volume::builder()
+                .font(font.clone())
+                .fg(color::LOVE)
+                .bg(color::SURFACE)
+                .bar_filled(color::PINE)
+                .desired_height(args.height)
+                .build(LC::new("Volume", cfg!(feature = "volume-logs")))
+            {
+                Ok(w) => {
+                    right_container.add(Box::new(w));
+                }
+                Err(err) => warn!(lc, "| new :: Volume widget disabled. error={err}"),
+            }
+
             #[cfg(feature = "cpu")]
             match crate::cpu::Cpu::builder()
                 .font(font.clone())
@@ -205,15 +226,15 @@ impl App {
             }
 
             widgets.push(Box::new(
-                right_container.build(LC::new("Right Container", true)),
+                right_container.build(LC::new("Right Container", false)),
             ));
         }
 
         let mut me = Self {
             //connection,
-            //compositor,
-            //layer_shell,
-            layer_surface,
+            compositor,
+            layer_shell,
+            layer_surface: Some(layer_surface),
             widgets,
             pointer: None,
 
@@ -249,8 +270,12 @@ impl CompositorHandler for App {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
         _surface: &wl_surface::WlSurface,
-        _new_factor: i32,
+        new_factor: i32,
     ) {
+        info!(
+            self.lc,
+            "| scale_factor_changed :: new scale factor (ignored) {new_factor:?}"
+        );
     }
 
     fn transform_changed(
@@ -258,8 +283,12 @@ impl CompositorHandler for App {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
         _surface: &wl_surface::WlSurface,
-        _new_transform: wl_output::Transform,
+        new_transform: wl_output::Transform,
     ) {
+        info!(
+            self.lc,
+            "| transform_changed :: New transform (ignored) {new_transform:?}"
+        );
     }
 
     fn frame(
@@ -271,6 +300,26 @@ impl CompositorHandler for App {
     ) {
         self.draw(qh);
     }
+
+    fn surface_enter(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        info!(self.lc, "| surface_enter :: surface entered");
+    }
+
+    fn surface_leave(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        info!(self.lc, "| surface_leave :: surface left");
+    }
 }
 
 impl OutputHandler for App {
@@ -281,9 +330,33 @@ impl OutputHandler for App {
     fn new_output(
         &mut self,
         _conn: &Connection,
-        _qh: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
+        info!(self.lc, "| new_output :: a new output was added");
+
+        if self.layer_surface.is_none() {
+            info!(
+                self.lc,
+                "| new_output :: no current surface, making a new one on the output"
+            );
+            let surface = self.compositor.create_surface(qh);
+
+            let layer_surface = self.layer_shell.create_layer_surface(
+                &qh,
+                surface,
+                Layer::Top,
+                Some("wlrs-bar"),
+                None,
+            );
+
+            layer_surface.set_anchor(Anchor::BOTTOM.complement()); // anchor to all sides but the bottom
+            layer_surface.set_size(self.default_width, self.default_height);
+            layer_surface.set_exclusive_zone(self.default_height.try_into().unwrap());
+            layer_surface.commit();
+
+            self.layer_surface = Some(layer_surface);
+        }
     }
 
     fn update_output(
@@ -292,6 +365,7 @@ impl OutputHandler for App {
         _qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
+        info!(self.lc, "| update_output :: a output was updated (ignored)");
     }
 
     fn output_destroyed(
@@ -300,12 +374,21 @@ impl OutputHandler for App {
         _qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
+        info!(
+            self.lc,
+            "| output_destroyed :: a output was destroyed (ignored)"
+        );
     }
 }
 
 impl LayerShellHandler for App {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.should_exit = true;
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
+        if self.layer_surface.as_ref().is_some_and(|l| *l == *layer) {
+            info!(self.lc, "| closed :: closing current surface.");
+            self.layer_surface = None;
+        } else {
+            info!(self.lc, "| closed :: surface closed, that we didn't store?");
+        }
     }
 
     fn configure(
@@ -368,7 +451,9 @@ impl SeatHandler for App {
         &mut self.seat_state
     }
 
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
+    fn new_seat(&mut self, _conn: &Connection, _dh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+        info!(self.lc, "| new_seat :: a new seat was added (ignored).");
+    }
 
     fn new_capability(
         &mut self,
@@ -400,7 +485,9 @@ impl SeatHandler for App {
         }
     }
 
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+        info!(self.lc, "| new_seat :: a new seat was added (ignored).");
+    }
 }
 
 impl PointerHandler for App {
@@ -414,7 +501,13 @@ impl PointerHandler for App {
         for event in events {
             let point: Point = event.position.into();
             // Ignore events for other surfaces
-            if &event.surface != self.layer_surface.wl_surface() {
+
+            if self.layer_surface.is_none()
+                || self
+                    .layer_surface
+                    .as_ref()
+                    .is_some_and(|l| *l.wl_surface() != event.surface)
+            {
                 trace!(
                     self.lc,
                     "| pointer_frame :: got a click from another surface"
@@ -521,6 +614,12 @@ impl PointerHandler for App {
 
 impl App {
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+        let layer = match &self.layer_surface {
+            Some(l) => l,
+            None => return, // nothing to draw onto.
+        };
+        let surface = layer.wl_surface();
+
         //self.pool
         //    .resize((self.width * self.height * 4) as usize)
         //    .unwrap();
@@ -542,8 +641,6 @@ impl App {
             y: self.height,
         });
 
-        let surface = self.layer_surface.wl_surface();
-
         if cfg!(feature = "damage") {
             let mut ctx = crate::draw::DrawCtx {
                 damage: &mut Vec::new(),
@@ -555,7 +652,7 @@ impl App {
 
             for dam in self.last_damage.iter() {
                 dam.draw_outline(color::SURFACE, &mut ctx);
-                dam.damage_outline(surface.clone());
+                dam.damage_outline(&surface);
             }
         }
 
@@ -617,16 +714,14 @@ impl App {
         surface.frame(qh, surface.clone()); // Request our next frame
         ctx.buffer.attach_to(surface).unwrap();
 
-        self.layer_surface.commit();
+        layer.commit();
 
         if cfg!(feature = "height-test") {
             // hack to test all sizes above your own (until it hits some limit)
             info!(self.lc, "| draw :: height: {}", self.height);
-            self.layer_surface
-                .set_size(self.default_width, self.height - 1);
-            self.layer_surface
-                .set_exclusive_zone(self.height as i32 - 1);
-            self.layer_surface.commit();
+            layer.set_size(self.default_width, self.height - 1);
+            layer.set_exclusive_zone(self.height as i32 - 1);
+            layer.commit();
         }
     }
 

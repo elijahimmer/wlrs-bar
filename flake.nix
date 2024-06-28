@@ -18,8 +18,6 @@
     supportedSystems = with flake-utils.lib.system; [
       x86_64-linux
       aarch64-linux
-      # no mac, wayland isn't on mac (as far as I know...)
-      # also, bsd users can fix this themselves. There are too many options...
     ];
   in flake-utils.lib.eachSystem supportedSystems (system: let
     pkgs = (import nixpkgs) {
@@ -32,6 +30,7 @@
       # makeBinaryWrapper
       pkg-config
       libxkbcommon
+      alsa-lib
     ];
   in {
     packages.default = naersk'.buildPackage {

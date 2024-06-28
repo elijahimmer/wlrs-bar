@@ -245,7 +245,7 @@ impl Rect {
         }
     }
 
-    pub fn damage_outline(self, surface: WlSurface) {
+    pub fn damage_outline(self, surface: &WlSurface) {
         assert!(self.max >= self.min, "{} < {}", self.max, self.min);
         let x_min = i32::try_from(self.min.x).unwrap();
         let x_max = i32::try_from(self.max.x).unwrap() - 1;
