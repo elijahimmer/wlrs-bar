@@ -146,6 +146,11 @@ impl TextBox {
         }
     }
 
+    pub fn text_area(&self) -> Rect {
+        self.area
+            .place_at(self.glyphs_size.unwrap(), self.h_align, self.v_align)
+    }
+
     pub fn builder() -> TextBoxBuilder<NeedsFont> {
         TextBoxBuilder::<NeedsFont>::new()
     }

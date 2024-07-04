@@ -141,22 +141,6 @@ impl App {
                 .h_align(Align::End)
                 .inner_h_align(Align::End);
 
-            #[cfg(feature = "updated-last")]
-            if let Some(time_stamp) = args.updated_last {
-                right_container.add(Box::new(
-                    crate::updated_last::UpdatedLast::builder()
-                        .font(font.clone())
-                        .time_stamp(time_stamp)
-                        .h_align(Align::End)
-                        .fg(color::ROSE)
-                        .bg(color::SURFACE)
-                        .desired_height(args.height)
-                        .build(LC::new("Updated Last", cfg!(feature = "updated-last-logs"))),
-                ));
-            } else {
-                warn!(lc, "| new :: Updated Last not starting, no time_stamp provided, use '--updated-last <TIME_STAMP>'");
-            }
-
             #[cfg(feature = "battery")]
             match crate::battery::Battery::builder()
                 .font(font.clone())
@@ -191,6 +175,22 @@ impl App {
                     right_container.add(Box::new(w));
                 }
                 Err(err) => warn!(lc, "| new :: Volume widget disabled. error={err}"),
+            }
+
+            #[cfg(feature = "updated-last")]
+            if let Some(time_stamp) = args.updated_last {
+                right_container.add(Box::new(
+                    crate::updated_last::UpdatedLast::builder()
+                        .font(font.clone())
+                        .time_stamp(time_stamp)
+                        .h_align(Align::End)
+                        .fg(color::ROSE)
+                        .bg(color::SURFACE)
+                        .desired_height(args.height)
+                        .build(LC::new("Updated Last", cfg!(feature = "updated-last-logs"))),
+                ));
+            } else {
+                warn!(lc, "| new :: Updated Last not starting, no time_stamp provided, use '--updated-last <TIME_STAMP>'");
             }
 
             #[cfg(feature = "cpu")]

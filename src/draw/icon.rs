@@ -56,6 +56,14 @@ impl Icon {
         }
     }
 
+    pub fn area_used(&self) -> Rect {
+        if self.glyph.is_none() {
+            return Default::default();
+        }
+        let (_gly, size) = self.glyph.as_ref().unwrap();
+        self.area_used.place_at(*size, self.h_align, self.v_align)
+    }
+
     fn render_icon(&self, max_size: Point) -> (PositionedGlyph<'static>, Point) {
         let Point {
             x: max_width,

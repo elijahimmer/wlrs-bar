@@ -69,7 +69,7 @@ impl Battery {
             "Discharging" => BatteryStatus::Normal,
             "Critical" => BatteryStatus::Critical,
             "Not charging" | "Full" => BatteryStatus::Full,
-            "Charging" if charge < 0.95 => BatteryStatus::Full,
+            "Charging" if charge > 0.95 => BatteryStatus::Full,
             "Charging" => BatteryStatus::Charging,
             "Warn" => BatteryStatus::Warn,
             _ => {
@@ -127,7 +127,7 @@ impl Widget for Battery {
     fn resize(&mut self, area: Rect) {
         self.battery.resize(area);
         self.charging.resize(area);
-        self.progress.resize(area);
+        self.progress.resize(self.battery.area_used());
         self.area = area;
     }
 
@@ -262,10 +262,10 @@ impl BatteryBuilder<HasFont> {
             .build(lc.child("Charging"));
 
         let progress = Progress::builder()
-            .top_margin(0.25)
-            .bottom_margin(0.22)
-            .left_margin(0.19)
-            .right_margin(0.2)
+            .top_margin(0.2)
+            .bottom_margin(0.2)
+            .left_margin(0.12)
+            .right_margin(0.12)
             .starting_bound(0.0)
             .ending_bound(1.0)
             .fill_direction(Direction::East)
