@@ -343,7 +343,7 @@ impl OutputHandler for App {
             let surface = self.compositor.create_surface(qh);
 
             let layer_surface = self.layer_shell.create_layer_surface(
-                &qh,
+                qh,
                 surface,
                 Layer::Top,
                 Some("wlrs-bar"),
@@ -652,7 +652,7 @@ impl App {
 
             for dam in self.last_damage.iter() {
                 dam.draw_outline(color::SURFACE, &mut ctx);
-                dam.damage_outline(&surface);
+                dam.damage_outline(surface);
             }
         }
 

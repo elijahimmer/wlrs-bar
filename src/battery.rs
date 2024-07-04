@@ -265,7 +265,7 @@ impl BatteryBuilder<HasFont> {
             .top_margin(0.2)
             .bottom_margin(0.2)
             .left_margin(0.12)
-            .right_margin(0.12)
+            .right_margin(0.125)
             .starting_bound(0.0)
             .ending_bound(1.0)
             .fill_direction(Direction::East)
