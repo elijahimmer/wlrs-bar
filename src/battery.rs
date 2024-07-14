@@ -68,8 +68,9 @@ impl Battery {
             "Discharging" if charge < 0.25 => BatteryStatus::Warn,
             "Discharging" => BatteryStatus::Normal,
             "Critical" => BatteryStatus::Critical,
-            "Not charging" | "Full" => BatteryStatus::Full,
-            "Charging" if charge > 0.95 => BatteryStatus::Full,
+            "Not charging" => BatteryStatus::Full,
+            "Full" => BatteryStatus::Full,
+            "Charging" if charge < 0.95 => BatteryStatus::Full,
             "Charging" => BatteryStatus::Charging,
             "Warn" => BatteryStatus::Warn,
             _ => {
