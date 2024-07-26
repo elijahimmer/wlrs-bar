@@ -42,7 +42,7 @@ pub struct Workspaces {
 
     last_hover: Option<(usize, Point)>,
 
-    worker_handle: Option<JoinHandle<Result<()>>>,
+    worker_handle: Option<JoinHandle<Result<(), worker::WorkerError>>>,
     worker_send: Sender<ManagerMsg>,
     worker_recv: Receiver<WorkerMsg>,
 
@@ -60,12 +60,14 @@ impl Workspaces {
         if self.worker_handle.is_none()
             || self.worker_handle.as_ref().is_some_and(|h| h.is_finished())
         {
-            match self.worker_handle.take().map(|w| w.join()).transpose() {
-                Ok(_) => warn!(self.lc, "| workspaces worker returned too soon"),
-                Err(err) => error!(
+            match self.worker_handle.take().map(|w| w.join()) {
+                Some(Ok(Err(err))) => warn!(self.lc, "| workspaces worker errored {err}"),
+                Some(Ok(Ok(_))) => warn!(self.lc, "| workspaces worker returned too soon"),
+                Some(Err(err)) => error!(
                     self.lc,
                     "| workspaces worker thread panicked. error={err:?}"
                 ),
+                None => {}
             }
 
             let (worker_send, other_recv) = mpsc::channel::<ManagerMsg>();

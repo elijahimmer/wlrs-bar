@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
 use std::env;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
+use thiserror::Error;
 
 pub const COMMAND_SOCKET: &str = ".socket.sock";
 pub const EVENT_SOCKET: &str = ".socket2.sock";
@@ -16,9 +16,9 @@ pub enum HyprSocket {
 
 #[derive(Debug)]
 pub enum Command {
-    MoveToWorkspace(WorkspaceID),
     ActiveWorkspace,
     Workspaces,
+    MoveToWorkspace(WorkspaceID),
 }
 
 use std::fmt::{Display, Error as FmtError, Formatter};
@@ -32,21 +32,40 @@ impl Display for Command {
     }
 }
 
-pub fn open_hypr_socket(socket: HyprSocket) -> Result<UnixStream> {
-    let xdg_dir = env::var("XDG_RUNTIME_DIR")?;
-    let his = env::var("HYPRLAND_INSTANCE_SIGNATURE")?;
+#[derive(Error, Debug)]
+pub enum OpenHyprSocketError {
+    #[error("'XDG_RUNTIME_DIR' {0}")]
+    XDGRuntimeDirNotSet(std::env::VarError),
+    #[error("'HYPRLAND_INSTANCE_SIGNATURE' {0}")]
+    HISNotSet(std::env::VarError),
+    #[error("Failed to connect to Hyprland socket with `{0}`")]
+    UnixStreamConnect(#[from] std::io::Error),
+}
+
+pub fn open_hypr_socket(socket: HyprSocket) -> Result<UnixStream, OpenHyprSocketError> {
+    let xdg_dir = env::var("XDG_RUNTIME_DIR").map_err(OpenHyprSocketError::XDGRuntimeDirNotSet)?;
+    let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").map_err(OpenHyprSocketError::HISNotSet)?;
 
     let socket_file = match socket {
         HyprSocket::Command => COMMAND_SOCKET,
         HyprSocket::Event => EVENT_SOCKET,
     };
 
-    Ok(UnixStream::connect(format!(
-        "{xdg_dir}/hypr/{his}/{socket_file}"
-    ))?)
+    UnixStream::connect(format!("{xdg_dir}/hypr/{his}/{socket_file}"))
+        .map_err(OpenHyprSocketError::UnixStreamConnect)
 }
 
-pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
+#[derive(Error, Debug)]
+pub enum SendHyprCommandError {
+    #[error(transparent)]
+    OpenHyprSocket(#[from] OpenHyprSocketError),
+    #[error("Failed to use hyprland socket with `{0}`")]
+    IOError(#[from] std::io::Error),
+    #[error("Invalid Hyprland command (submit bug report). command=`{0}`")]
+    InvalidCommand(Command),
+}
+
+pub fn send_hypr_command(command: Command) -> Result<Box<str>, SendHyprCommandError> {
     let mut socket = open_hypr_socket(HyprSocket::Command)?;
     write!(socket, "{command}")?;
     socket.flush()?;
@@ -57,7 +76,7 @@ pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
     let res = res.trim();
 
     if res == "unknown request" {
-        Err(anyhow!("Invaid Hyprland command '{command}'"))
+        Err(SendHyprCommandError::InvalidCommand(command))
     } else {
         Ok(res.into())
     }
@@ -66,49 +85,61 @@ pub fn send_hypr_command(command: Command) -> Result<Box<str>> {
 const WKSP_CMD_START: &str = "workspace ID ";
 const WKSP_CMD_LEN: usize = WKSP_CMD_START.len();
 
-pub fn get_active_workspace() -> Result<WorkspaceID> {
-    send_hypr_command(Command::ActiveWorkspace).and_then(|l| get_workspace_id(&l))
+#[derive(Error, Debug)]
+pub enum GetWorkspaceError {
+    #[error(transparent)]
+    SendHyprCommand(#[from] SendHyprCommandError),
+    #[error(transparent)]
+    GetWorkspaceId(#[from] GetWorkspaceIdError),
 }
 
-pub fn get_workspaces() -> Result<Vec<WorkspaceID>> {
-    send_hypr_command(Command::Workspaces)?
+pub fn get_active_workspace() -> Result<WorkspaceID, GetWorkspaceError> {
+    Ok(get_workspace_id(&send_hypr_command(
+        Command::ActiveWorkspace,
+    )?)?)
+}
+
+pub fn get_workspaces() -> Result<Vec<WorkspaceID>, GetWorkspaceError> {
+    Ok(send_hypr_command(Command::Workspaces)?
         .lines()
         .filter(|l| l.starts_with(WKSP_CMD_START))
         .map(get_workspace_id)
-        .collect::<Result<Vec<_>>>()
+        .collect::<Result<Vec<_>, GetWorkspaceIdError>>()
         .map(|mut v| {
             v.sort();
             v
-        })
+        })?)
 }
 
-fn get_workspace_id(line: &str) -> Result<WorkspaceID> {
+#[derive(Error, Debug)]
+pub enum GetWorkspaceIdError {
+    #[error("Hyprland's workspace response was invalid (submit bug report).")]
+    InvalidWorkspaceResponse,
+    #[error("Failed to parse the workspace id with `{0}`")]
+    FailedToParseId(std::num::ParseIntError),
+}
+
+fn get_workspace_id(line: &str) -> Result<WorkspaceID, GetWorkspaceIdError> {
     assert!(line.starts_with(WKSP_CMD_START));
     line[WKSP_CMD_LEN..]
         .find(' ')
-        .ok_or(anyhow!("Invalid Workspace Response '{line}'"))
-        .and_then(|idx| Ok(line[WKSP_CMD_LEN..][..idx].parse()?))
+        .ok_or(GetWorkspaceIdError::InvalidWorkspaceResponse)
+        .and_then(|idx| {
+            line[WKSP_CMD_LEN..][..idx]
+                .parse()
+                .map_err(GetWorkspaceIdError::FailedToParseId)
+        })
 }
 
 const ALPHA_CHAR: u32 = 'Α' as u32 - 1;
 
 pub fn map_workspace_id(id: WorkspaceID) -> String {
     match id {
-        i @ 1..=17 => match char::from_u32(ALPHA_CHAR + i as u32) {
-            Some(ch) => ch.to_string(),
-            None => {
-                log::warn!("Failed to map workspace to symbol: i={i}");
-                format!("{}", i)
-            }
-        },
+        i @ 1..=17 => char::from_u32(ALPHA_CHAR + i as u32).unwrap().to_string(),
         // I needed to split this because there is a reserved character between rho and sigma.
-        i @ 18..=24 => match char::from_u32((ALPHA_CHAR + 1) + i as u32) {
-            Some(ch) => ch.to_string(),
-            None => {
-                log::warn!("Failed to map workspace to symbol: i={i}");
-                format!("{}", i)
-            }
-        },
+        i @ 18..=24 => char::from_u32((ALPHA_CHAR + 1) + i as u32)
+            .unwrap()
+            .to_string(),
         i => format!("{}", i),
     }
 }
