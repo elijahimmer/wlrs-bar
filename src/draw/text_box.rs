@@ -248,7 +248,10 @@ impl Widget for TextBox {
                 "ratio of {width_max}/{width_used} = {ratio} wasn't between 0 and 1."
             );
 
-            let height_new = (height_max as f32 * ratio).round() as u32;
+            // NOTE: changed from .round() to .floor() to fix rounding error
+            //       no idea if it's a significant change
+            //       - rond
+            let height_new = (height_max as f32 * ratio).floor() as u32;
 
             debug!(
                 self.lc,
