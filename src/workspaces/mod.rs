@@ -124,7 +124,8 @@ impl Workspaces {
                 }
                 WorkerMsg::WorkspaceCreate(id) => {
                     if let Err(idx) = self.workspaces.binary_search_by_key(&id, |w| w.0) {
-                        let wk_name = utils::map_workspace_id(id);
+                        // let wk_name = utils::map_workspace_id(id);
+                        let wk_name = id.to_string();
 
                         let mut builder = self.workspace_builder.clone();
 
