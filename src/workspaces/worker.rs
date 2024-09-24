@@ -20,7 +20,13 @@ impl WorkerMsg {
             "createworkspace" => Some(Self::WorkspaceCreate(msg.parse()?)),
             "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse()?)),
             _ => {
-                //trace!("work :: cmd: '{cmd}' msg: '{msg}'");
+                trace!(
+                    LC {
+                        name: String::from("work"),
+                        should_log: true
+                    },
+                    "work :: cmd: '{cmd}' msg: '{msg}'"
+                );
                 None
             }
         })
@@ -79,6 +85,7 @@ pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Resu
             .lines()
             .filter_map(|line| line.find(">>").map(|idx| (&line[..idx], &line[idx + 2..])))
             .filter_map(|(cmd, msg)| {
+                println!("cmd: {cmd} - msg: {msg}");
                 WorkerMsg::parse(cmd, msg)
                     .map_err(|err| warn!(lc, "| work :: Failed to parse WorkerMsg. error='{err}'"))
                     .ok()?
