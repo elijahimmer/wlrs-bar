@@ -1,5 +1,6 @@
 pub mod draw;
 pub mod log;
+pub mod title;
 pub mod utils;
 pub mod widget;
 
