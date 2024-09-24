@@ -1,11 +1,9 @@
 pub use crate::{debug, error, info, trace, warn};
 
-use std::sync::Arc;
-
 /// Log Context
 #[derive(Clone)]
 pub struct LC {
-    pub name: Arc<str>, // TODO: make this not a arc
+    pub name: String, // TODO: make this not a arc
     pub should_log: bool,
 }
 
@@ -34,7 +32,7 @@ impl LC {
     }
 }
 
-use ::std::fmt::{Display, Error as FmtError, Formatter};
+use std::fmt::{Display, Error as FmtError, Formatter};
 impl Display for LC {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         write!(f, "{}", self.name)
