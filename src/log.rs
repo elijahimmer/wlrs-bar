@@ -1,11 +1,9 @@
 pub use crate::{debug, error, info, trace, warn};
 
-use std::sync::Arc;
-
 /// Log Context
 #[derive(Clone)]
 pub struct LC {
-    pub name: Arc<str>, // TODO: make this not a arc
+    pub name: String,
     pub should_log: bool,
 }
 
@@ -18,13 +16,13 @@ impl LC {
     }
     pub fn child(&self, name_extention: &str) -> Self {
         Self {
-            name: format!("{} > {}", self.name, name_extention).into(),
+            name: format!("{} > {}", self.name, name_extention),
             should_log: self.should_log,
         }
     }
     pub fn combine(&self, other: &Self) -> Self {
         Self {
-            name: format!("{} & {}", self, other).into(),
+            name: format!("{} & {}", self, other),
             should_log: self.should_log || other.should_log,
         }
     }
