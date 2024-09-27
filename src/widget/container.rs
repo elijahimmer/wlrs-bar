@@ -2,7 +2,6 @@ use super::place_widgets::*;
 use super::*;
 use crate::log::*;
 
-
 /// A container to just hold other widgets spaced out properly.
 pub struct Container {
     /// The log context for the container

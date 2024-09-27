@@ -102,10 +102,10 @@ impl ClickType {
 /// Automatically makes the boilerplate constructor setters
 /// The syntax is the type followed by a ',', then each of the fields of that type.
 /// separate each of these lists by a ';'
-/// So an example from container is 
+/// So an example from container is
 /// ```
 /// impl ContainerBuilder {
-/// // ... 
+/// // ...
 ///     crate::builder_fields! {
 ///         Align, v_align h_align inner_h_align;
 /// //      ^^^^^  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
