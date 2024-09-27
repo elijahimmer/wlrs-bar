@@ -11,6 +11,7 @@ impl Color {
         Self { r, g, b, a }
     }
 
+    /// Blend a base color (self) with a new color (other)
     pub fn blend(self, other: Self, ratio: f32) -> Self {
         assert!((-0.1..=1.1).contains(&ratio));
         let ratio = ratio.clamp(0.0, 1.0);
@@ -53,6 +54,7 @@ impl Color {
         }
     }
 
+    /// Converts the color into argb8888
     pub fn argb8888(self) -> [u8; 4] {
         let a = (self.a as u32) << 24;
         let r = (self.r as u32) << 16;
@@ -61,6 +63,7 @@ impl Color {
         (a + r + g + b).to_le_bytes()
     }
 
+    /// Creates a color from a argb8888 array
     pub fn from_argb8888(argb: &[u8; 4]) -> Self {
         let color = u32::from_le_bytes(*argb);
         Self {
@@ -78,6 +81,7 @@ impl Default for Color {
     }
 }
 
+/// Macro to display color names instead of their hex values
 macro_rules! display_name {
     ($fmt:ident, $self:expr, $($other:ident)+) => {
         $(if ($self == $other) {
@@ -95,10 +99,6 @@ impl Display for Color {
     }
 }
 
-pub const ALL_COLORS: [Color; 16] = [
-    CLEAR, BASE, SURFACE, OVERLAY, MUTED, SUBTLE, TEXT, LOVE, GOLD, ROSE, PINE, FOAM, IRIS, H_LOW,
-    H_MED, H_HIGH,
-];
 pub const CLEAR: Color = Color::new(0, 0, 0, 0);
 pub const BASE: Color = Color::new(0x19, 0x17, 0x24, 0xFF);
 pub const SURFACE: Color = Color::new(0x1f, 0x1d, 0x2e, 0xFF);
@@ -119,6 +119,12 @@ pub const H_HIGH: Color = Color::new(0x52, 0x4f, 0x67, 0xFF);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    pub const ALL_COLORS: [Color; 16] = [
+        CLEAR, BASE, SURFACE, OVERLAY, MUTED, SUBTLE, TEXT, LOVE, GOLD, ROSE, PINE, FOAM, IRIS, H_LOW,
+        H_MED, H_HIGH,
+    ];
+
     #[test]
     fn composite() {
         for color in ALL_COLORS {
