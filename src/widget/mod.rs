@@ -78,6 +78,7 @@ pub trait PositionedWidget {
 }
 
 // TODO: Find a new home for this...
+/// The click event type
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClickType {
     LeftClick,
@@ -87,6 +88,7 @@ pub enum ClickType {
 }
 
 impl ClickType {
+    /// turn a input code into a click event Assumes it is a click event.
     pub fn new(button: u32) -> Self {
         match button {
             272 => Self::LeftClick,
@@ -98,6 +100,21 @@ impl ClickType {
 }
 
 /// Automatically makes the boilerplate constructor setters
+/// The syntax is the type followed by a ',', then each of the fields of that type.
+/// separate each of these lists by a ';'
+/// So an example from container is 
+/// ```
+/// impl ContainerBuilder {
+/// // ... 
+///     crate::builder_fields! {
+///         Align, v_align h_align inner_h_align;
+/// //      ^^^^^  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/// //      ^- types   ^- fields
+///         u32, desired_height desired_width;
+///     }
+/// // ... (other fields)
+/// }
+/// ```
 #[macro_export]
 macro_rules! builder_fields {
     ($($t: ty, $($n: ident)+;)+) => ($($(

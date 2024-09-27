@@ -1,6 +1,7 @@
 use super::*;
 use crate::log::*;
 
+/// stack widgets, on after another, from the left to the right.
 pub fn stack_widgets_right(
     lc: &LC,
     widgets: &mut [impl std::ops::DerefMut<Target = dyn Widget>],

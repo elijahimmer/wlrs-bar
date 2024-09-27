@@ -2,20 +2,40 @@ use super::place_widgets::*;
 use super::*;
 use crate::log::*;
 
-//use crate::draw::prelude::*;
 
+/// A container to just hold other widgets spaced out properly.
 pub struct Container {
+    /// The log context for the container
     lc: LC,
+
+    /// The vector of all the widgets contained.
+    /// side note: I hate the vec of boxes of dyns...
     widgets: Vec<Box<dyn Widget>>,
+
+    /// A list of all the widgets, and whether they should redraw or now.
+    /// This is intermediate storage so we don't query the should_redraw function
+    /// all internal widgets once on the should_redraw call when we actually redraw
     should_redraw: Vec<bool>,
+
+    /// the vertical alignment for the container itself
     v_align: Align,
+
+    /// the horizontal alignment for the container itself
     h_align: Align,
+
+    /// The alignment of the interior widgets
     inner_h_align: Align,
+
+    /// The area the container resides in
     area: Rect,
 
+    /// Where the last pointer movement was, if it had not left yet.
     last_motion: Option<Point>,
 
+    /// The desired height of the entire container
     desired_height: Option<u32>,
+
+    /// The desired width of the entire container
     desired_width: Option<u32>,
 }
 
@@ -149,6 +169,7 @@ impl ContainerBuilder {
         u32, desired_height desired_width;
     }
 
+    /// Add a widget to the container
     pub fn add(&mut self, widget: Box<dyn Widget>) -> &mut Self {
         self.widgets.push(widget);
         self
