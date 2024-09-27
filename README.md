@@ -45,3 +45,4 @@ You will then have to recompile
 
 **Non Mono space fonts should be supported, but are not tested.** (make a bug report to tell me how they work)
 
+## Make more bug reports to tell me what I should document (and give me a reason to)
