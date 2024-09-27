@@ -3,7 +3,11 @@ pub use crate::{debug, error, info, trace, warn};
 /// Log Context
 #[derive(Clone)]
 pub struct LC {
+    /// The name to log under. This could be a Rc or Arc, but as of now just copying everything
+    /// over.
     pub name: String,
+    /// Whether or not the log statements should actually log for info and below.
+    /// Error and Warn will still be logged.
     pub should_log: bool,
 }
 
@@ -14,12 +18,16 @@ impl LC {
             should_log,
         }
     }
+
+    /// Create a log for a child element, such as a TextBox in another element.
     pub fn child(&self, name_extention: &str) -> Self {
         Self {
             name: format!("{} > {}", self.name, name_extention),
             should_log: self.should_log,
         }
     }
+
+    /// Log for both elements to log under both of them.
     pub fn combine(&self, other: &Self) -> Self {
         Self {
             name: format!("{} & {}", self, other),
@@ -27,6 +35,7 @@ impl LC {
         }
     }
 
+    /// return a new log
     pub fn with_log(self, should_log: bool) -> Self {
         Self { should_log, ..self }
     }
