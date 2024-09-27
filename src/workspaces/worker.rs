@@ -1,9 +1,9 @@
 use super::utils::*;
 use crate::log::*;
 
-use anyhow::{bail, Result};
 use std::io::Read;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use thiserror::Error;
 
 #[derive(Debug)]
 pub enum WorkerMsg {
@@ -14,21 +14,12 @@ pub enum WorkerMsg {
 }
 
 impl WorkerMsg {
-    pub fn parse(cmd: &str, msg: &str) -> Result<Option<WorkerMsg>> {
+    pub fn parse(cmd: &str, msg: &str) -> Result<Option<WorkerMsg>, std::num::ParseIntError> {
         Ok(match cmd {
             "workspace" => Some(Self::WorkspaceSetActive(msg.parse()?)),
             "createworkspace" => Some(Self::WorkspaceCreate(msg.parse()?)),
             "destroyworkspace" => Some(Self::WorkspaceDestroy(msg.parse()?)),
-            _ => {
-                trace!(
-                    LC {
-                        name: String::from("work"),
-                        should_log: true
-                    },
-                    "work :: cmd: '{cmd}' msg: '{msg}'"
-                );
-                None
-            }
+            _ => None,
         })
     }
 }
@@ -38,19 +29,37 @@ pub enum ManagerMsg {
     Close,
 }
 
-pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Result<()> {
+#[derive(Error, Debug)]
+pub enum WorkerError {
+    #[error(transparent)]
+    OpenHyprSocket(#[from] OpenHyprSocketError),
+    #[error(transparent)]
+    GetWorkspace(#[from] GetWorkspaceError),
+    #[error("Failed to use Hyprland socket with `{0}`")]
+    SocketError(#[from] std::io::Error),
+    #[error("Failed to send message to Manager thread with `{0}`")]
+    ManagerMsgError(#[from] std::sync::mpsc::SendError<WorkerMsg>),
+}
+
+pub fn work(
+    lc: LC,
+    recv: Receiver<ManagerMsg>,
+    send: Sender<WorkerMsg>,
+) -> Result<(), WorkerError> {
     let mut socket = open_hypr_socket(HyprSocket::Event)?;
     if let Err(err) = socket.set_nonblocking(true) {
         warn!(
             lc,
-            "| work :: couldn't set socket to non-blocking. error={err}"
+            "work :: couldn't set socket to non-blocking. error={err}"
         );
     }
 
     send.send(WorkerMsg::WorkspaceReset)?;
-    get_workspaces()?
+
+    let _ = get_workspaces()?
         .into_iter()
-        .try_for_each(|w| send.send(WorkerMsg::WorkspaceCreate(w)))?;
+        .try_for_each(|w| send.send(WorkerMsg::WorkspaceCreate(w)))
+        .inspect_err(|err| warn!(lc, "work :: failed to get initial workspaces with `{err}`"));
 
     send.send(WorkerMsg::WorkspaceSetActive(get_active_workspace()?))?;
 
@@ -65,7 +74,7 @@ pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Resu
                 }
             },
             Err(TryRecvError::Disconnected) => {
-                warn!(lc, "| work :: manager's send channel disconnected");
+                warn!(lc, "work :: manager's send channel disconnected");
                 break;
             }
             Err(TryRecvError::Empty) => {}
@@ -77,7 +86,7 @@ pub fn work(lc: LC, recv: Receiver<ManagerMsg>, send: Sender<WorkerMsg>) -> Resu
             Ok(b) => b,
             Err(err) => match err.kind() {
                 std::io::ErrorKind::WouldBlock => continue,
-                _ => bail!("{lc} | work :: failed to read from socket. error={err}"),
+                _ => return Err(WorkerError::SocketError(err)),
             },
         };
 

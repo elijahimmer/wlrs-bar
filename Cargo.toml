@@ -18,6 +18,7 @@ rusttype = "0.9.3"
 smithay-client-toolkit = "0.19.1"
 sysinfo = { version = "0.30.12", default-features = false }
 wayland-client = { version = "0.31.3", features = ["log"] }
+thiserror = "1.0.63"
 
 [features]
 default = ["widgets"]
