@@ -1,4 +1,7 @@
-# Walrus Bar
+# Wlrs Bar
+
+I have mostly rewritten [Walrus-Bar](https://github.com/elijahimmer/walrus-bar), and I don't think I will end up updating this much more.
+
 ### Contributions and Bugs Reports are welcome!
 A Wayland Status Bar in Rust based on Smithay
 
