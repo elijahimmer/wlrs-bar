@@ -1,5 +1,5 @@
 # Wlrs Bar
-This has been entirely rewritten in zig at [Walrus-Bar](https://codeberg.com/Elijah-Immer/walrus-bar), and I will nolonger be maintaining this.
+This has been entirely rewritten in zig at https://codeberg.org/Elijah-Immer/walrus-bar, and I will nolonger be maintaining this.
 
 If there is something not in the rewrite, please make a bug report over there!
 
