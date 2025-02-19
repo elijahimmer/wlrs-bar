@@ -1,9 +1,9 @@
 # Wlrs Bar
+This has been entirely rewritten in zig at [Walrus-Bar](https://codeberg.com/Elijah-Immer/walrus-bar), and I will nolonger be maintaining this.
 
-I have mostly rewritten [Walrus-Bar](https://github.com/elijahimmer/walrus-bar), and I don't think I will end up updating this much more.
+If there is something not in the rewrite, please make a bug report over there!
 
-### Contributions and Bugs Reports are welcome!
-A Wayland Status Bar in Rust based on Smithay
+And if anyone wants to maintain and expand this, I will be happy to help (to the extent that I remember the code base).
 
 ## Running
 If you have a executable, then nothing else is needed (other than a wayland session to connect to)
